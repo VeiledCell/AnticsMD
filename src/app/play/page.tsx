@@ -42,6 +42,7 @@ export default function PlayPage() {
   // Listen for custom events from Phaser
   useEffect(() => {
     const handleInteract = (e: any) => {
+      console.log('🎉 React caught interaction event:', e.detail);
       // For now, always show the mock vignette regardless of ID
       setActiveVignette(MOCK_VIGNETTE);
     };

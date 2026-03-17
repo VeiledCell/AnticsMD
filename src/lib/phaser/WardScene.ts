@@ -25,11 +25,16 @@ export default class WardScene extends Phaser.Scene {
 
   constructor() {
     super('WardScene');
+    const host = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
+    console.log('Connecting to PartyKit at:', host);
     this.socket = new PartySocket({
-      host: process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999',
+      host,
       room: 'hospital-ward',
       id: this.playerId,
     });
+
+    this.socket.onopen = () => console.log('✅ Connected to PartyKit');
+    this.socket.onerror = (err) => console.error('❌ PartyKit Error:', err);
   }
 
   preload() {
@@ -40,7 +45,6 @@ export default class WardScene extends Phaser.Scene {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
 
-    // Create floor grid (isometric simulation)
     this.createIsometricGrid();
 
     // Create local player
@@ -54,6 +58,7 @@ export default class WardScene extends Phaser.Scene {
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log('📥 Received message:', data.type);
       if (data.type === 'sync') {
         Object.entries(data.players).forEach(([id, p]: [string, any]) => {
           if (id !== this.playerId) this.updateRemotePlayer(p);
@@ -73,11 +78,15 @@ export default class WardScene extends Phaser.Scene {
 
     patient.setInteractive();
     patient.on('pointerdown', () => {
+      console.log('👆 Patient clicked:', id);
       if (!this.player) return;
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-      if (dist < 80) {
-        // Dispatch to window so React can hear it
+      console.log('📍 Distance to patient:', dist);
+      if (dist < 120) { // Increased interaction radius
+        console.log('🎯 Dispatching interaction event');
         window.dispatchEvent(new CustomEvent('phaser-patient-interact', { detail: { id } }));
+      } else {
+        console.log('🚶 Too far away to interact');
       }
     });
   }
