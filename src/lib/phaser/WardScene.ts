@@ -107,6 +107,15 @@ export default class WardScene extends Phaser.Scene {
       if (dist < 120) {
         console.log('📤 [Socket] Sending Lock for:', id);
         this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
+        // Also update local status
+        this.socket.send(JSON.stringify({
+          type: 'update',
+          x: this.player.x,
+          y: this.player.y,
+          rotation: 0,
+          status: 'interviewing',
+          activePatientId: id
+        }));
         window.dispatchEvent(new CustomEvent('phaser-patient-interact', { detail: { id } }));
       }
     });
@@ -114,6 +123,17 @@ export default class WardScene extends Phaser.Scene {
 
   public unlockPatient(id: string) {
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
+    // Return to walking status
+    if (this.player) {
+      this.socket.send(JSON.stringify({
+        type: 'update',
+        x: this.player.x,
+        y: this.player.y,
+        rotation: 0,
+        status: 'walking',
+        activePatientId: undefined
+      }));
+    }
   }
 
   update() {

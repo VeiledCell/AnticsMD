@@ -37,6 +37,15 @@ export default class Server implements Party.Server {
 
     if (data.type === "lock") {
       console.log(`🔒 Requesting lock for ${data.patientId} by ${sender.id}`);
+      
+      // Check if player already holds any other lock
+      const existingLock = Object.keys(this.locks).find(pid => this.locks[pid] === sender.id);
+      if (existingLock && existingLock !== data.patientId) {
+        console.log(`♻️ Releasing old lock on ${existingLock} for ${sender.id}`);
+        delete this.locks[existingLock];
+        this.room.broadcast(JSON.stringify({ type: "unlock", patientId: existingLock }));
+      }
+
       if (!this.locks[data.patientId]) {
         this.locks[data.patientId] = sender.id;
         console.log(`✅ Lock granted for ${data.patientId}`);

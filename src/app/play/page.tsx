@@ -55,7 +55,8 @@ export default function PlayPage() {
       remotePlayers.forEach((player, id) => {
         if (player.status === 'interviewing' || player.status === 'charting') {
           const dist = Math.sqrt(Math.pow(player.x - localPlayer.x, 2) + Math.pow(player.y - localPlayer.y, 2));
-          if (dist < 200) { // Eavesdrop radius
+          console.log(`📡 Distance to Dr. ${id.substring(0,4)}:`, Math.round(dist));
+          if (dist < 400) { // Increased radius for easier testing
             newFeedEntries.push({
               id: `${id}-${Date.now()}`,
               text: `Dr. ${id.substring(0, 4)} is ${player.status === 'interviewing' ? 'interviewing' : 'charting'} a patient nearby...`,
