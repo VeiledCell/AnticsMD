@@ -48,15 +48,15 @@ export default function PlayPage() {
     };
 
     const handleRemoteUpdate = (e: any) => {
-      const remotePlayers = e.detail.players as Map<string, any>;
+      const remotePlayers = e.detail.players; // Now a plain object
       const localPlayer = e.detail.localPlayer;
       
       const newFeedEntries: any[] = [];
-      remotePlayers.forEach((player, id) => {
+      Object.entries(remotePlayers).forEach(([id, player]: [string, any]) => {
         if (player.status === 'interviewing' || player.status === 'charting') {
           const dist = Math.sqrt(Math.pow(player.x - localPlayer.x, 2) + Math.pow(player.y - localPlayer.y, 2));
           console.log(`📡 Distance to Dr. ${id.substring(0,4)}:`, Math.round(dist));
-          if (dist < 400) { // Increased radius for easier testing
+          if (dist < 400) { 
             newFeedEntries.push({
               id: `${id}-${Date.now()}`,
               text: `Dr. ${id.substring(0, 4)} is ${player.status === 'interviewing' ? 'interviewing' : 'charting'} a patient nearby...`,

@@ -7,11 +7,14 @@ interface PlayerData {
   y: number;
   rotation: number;
   status: string;
+  activePatientId?: string;
 }
 
 export default class WardScene extends Phaser.Scene {
   private socket: PartySocket;
   private players: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private remotePlayerData: Map<string, PlayerData> = new Map();
+  private lastUpdateSent: number = 0;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: {
     W: Phaser.Input.Keyboard.Key;
@@ -39,7 +42,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   preload() {
-    // No assets for now
+    // No assets
   }
 
   create() {
@@ -59,7 +62,6 @@ export default class WardScene extends Phaser.Scene {
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log('📩 [Socket] Incoming:', data);
       if (data.type === 'sync') {
         this.locks = new Map(Object.entries(data.locks));
         Object.entries(data.players).forEach(([id, p]: [string, any]) => {
@@ -69,11 +71,9 @@ export default class WardScene extends Phaser.Scene {
       } else if (data.type === 'update') {
         if (data.player.id !== this.playerId) this.updateRemotePlayer(data.player);
       } else if (data.type === 'lock') {
-        console.log('🔒 Message: Lock received for', data.patientId, 'by', data.playerId);
         this.locks.set(data.patientId, data.playerId);
         this.updatePatientColor(data.patientId);
       } else if (data.type === 'unlock') {
-        console.log('🔓 Message: Unlock received for', data.patientId);
         this.locks.delete(data.patientId);
         this.updatePatientColor(data.patientId);
       } else if (data.type === 'remove') {
@@ -105,9 +105,7 @@ export default class WardScene extends Phaser.Scene {
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
       if (dist < 120) {
-        console.log('📤 [Socket] Sending Lock for:', id);
         this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
-        // Also update local status
         this.socket.send(JSON.stringify({
           type: 'update',
           x: this.player.x,
@@ -123,7 +121,6 @@ export default class WardScene extends Phaser.Scene {
 
   public unlockPatient(id: string) {
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
-    // Return to walking status
     if (this.player) {
       this.socket.send(JSON.stringify({
         type: 'update',
@@ -136,7 +133,7 @@ export default class WardScene extends Phaser.Scene {
     }
   }
 
-  update() {
+  update(time: number) {
     if (!this.player || !this.cursors || !this.wasd) return;
 
     const speed = 200;
@@ -170,11 +167,11 @@ export default class WardScene extends Phaser.Scene {
       }));
     }
 
-    // Every second, dispatch remote updates to React for the Ward Feed
-    if (this.time.now % 1000 < 20) {
+    if (time > this.lastUpdateSent + 500) {
+      this.lastUpdateSent = time;
       window.dispatchEvent(new CustomEvent('phaser-remote-update', { 
         detail: { 
-          players: this.players, 
+          players: Object.fromEntries(this.remotePlayerData), 
           localPlayer: { x: this.player.x, y: this.player.y } 
         } 
       }));
@@ -199,6 +196,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private updateRemotePlayer(data: PlayerData) {
+    this.remotePlayerData.set(data.id, data);
     let remote = this.players.get(data.id);
     if (!remote) {
       remote = this.add.rectangle(data.x, data.y, 32, 32, 0xff0000);
@@ -209,6 +207,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private removeRemotePlayer(id: string) {
+    this.remotePlayerData.delete(id);
     const remote = this.players.get(id);
     if (remote) {
       remote.destroy();
