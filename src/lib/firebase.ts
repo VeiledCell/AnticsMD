@@ -1,6 +1,6 @@
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from "firebase/firestore";
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getAuth, Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getFirestore, Firestore, doc, setDoc, getDoc, updateDoc, increment } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,17 +12,29 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 
-// Set persistence to allow cross-subdomain SSO if needed
-if (typeof window !== "undefined") {
-  setPersistence(auth, browserLocalPersistence);
+// Initialize Firebase only if we have an API key (prevents build-time crashes)
+if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  auth = getAuth(app);
+  db = getFirestore(app);
+
+  if (typeof window !== "undefined") {
+    setPersistence(auth, browserLocalPersistence);
+  }
+} else {
+  // Mock objects for build time
+  app = {} as FirebaseApp;
+  auth = {} as Auth;
+  db = {} as Firestore;
 }
 
 export const saveGameStats = async (uid: string, stats: { xp: number, score: number, correct: boolean }) => {
+  if (!db || !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) return;
+  
   const statsRef = doc(db, "game_stats", uid);
   const docSnap = await getDoc(statsRef);
 

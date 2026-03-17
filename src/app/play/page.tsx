@@ -1,5 +1,6 @@
 'use client';
-import dynamic from 'next/dynamic';
+export const dynamic = 'force-dynamic';
+import dynamicNext from 'next/dynamic';
 import { Suspense, useState, useEffect } from 'react';
 import { Stethoscope, LogOut, Users, Activity } from 'lucide-react';
 import Link from 'next/link';
