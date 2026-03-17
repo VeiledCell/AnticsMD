@@ -13,7 +13,7 @@ export default class Server implements Party.Server {
 
   players: Record<string, Player> = {};
 
-  onConnect(conn: Party.Connection, ctx: Party.ConnectOptions) {
+  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     // Send current players to the new connection
     conn.send(JSON.stringify({ type: "sync", players: this.players }));
   }
