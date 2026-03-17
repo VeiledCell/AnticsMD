@@ -70,11 +70,18 @@ export default function PlayPage() {
       }
     };
 
+    const handleAutoUnlock = () => {
+      console.log('🚶 React auto-closing menu due to distance');
+      setActiveVignette(null);
+    };
+
     window.addEventListener('phaser-patient-interact', handleInteract);
     window.addEventListener('phaser-remote-update', handleRemoteUpdate);
+    window.addEventListener('phaser-patient-autounlock', handleAutoUnlock);
     return () => {
       window.removeEventListener('phaser-patient-interact', handleInteract);
       window.removeEventListener('phaser-remote-update', handleRemoteUpdate);
+      window.removeEventListener('phaser-patient-autounlock', handleAutoUnlock);
     };
   }, []);
 

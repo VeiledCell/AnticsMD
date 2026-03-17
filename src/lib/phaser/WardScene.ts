@@ -26,19 +26,19 @@ export default class WardScene extends Phaser.Scene {
   private patients: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private locks: Map<string, string> = new Map(); // patientId -> playerId
   private playerId: string = Math.random().toString(36).substring(7);
+  
+  private activePatientId: string | null = null;
+  private interactionRadius: number = 60;
+  private autoUnlockRadius: number = 100;
 
   constructor() {
     super('WardScene');
     const host = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
-    console.log('Connecting to PartyKit at:', host);
     this.socket = new PartySocket({
       host,
       room: 'hospital-ward',
       id: this.playerId,
     });
-
-    this.socket.onopen = () => console.log('✅ Connected to PartyKit');
-    this.socket.onerror = (err) => console.error('❌ PartyKit Error:', err);
   }
 
   preload() {
@@ -85,7 +85,7 @@ export default class WardScene extends Phaser.Scene {
   private updatePatientColor(id: string) {
     const p = this.patients.get(id);
     if (!p) return;
-    p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6); // Red if locked, blue if free
+    p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6);
   }
 
   private spawnPatient(id: string, x: number, y: number) {
@@ -104,7 +104,9 @@ export default class WardScene extends Phaser.Scene {
       }
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-      if (dist < 120) {
+      if (dist < this.interactionRadius) {
+        // If we already have a lock, the server will swap them for us
+        this.activePatientId = id;
         this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
         this.socket.send(JSON.stringify({
           type: 'update',
@@ -121,6 +123,7 @@ export default class WardScene extends Phaser.Scene {
 
   public unlockPatient(id: string) {
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
+    this.activePatientId = null;
     if (this.player) {
       this.socket.send(JSON.stringify({
         type: 'update',
@@ -135,6 +138,19 @@ export default class WardScene extends Phaser.Scene {
 
   update(time: number) {
     if (!this.player || !this.cursors || !this.wasd) return;
+
+    // Check for auto-unlock if player walks away
+    if (this.activePatientId) {
+      const p = this.patients.get(this.activePatientId);
+      if (p) {
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.x, p.y);
+        if (dist > this.autoUnlockRadius) {
+          console.log('🚶 Walked too far away. Auto-unlocking...');
+          this.unlockPatient(this.activePatientId);
+          window.dispatchEvent(new CustomEvent('phaser-patient-autounlock'));
+        }
+      }
+    }
 
     const speed = 200;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
@@ -163,7 +179,8 @@ export default class WardScene extends Phaser.Scene {
         x: this.player.x,
         y: this.player.y,
         rotation: 0,
-        status: 'walking'
+        status: this.activePatientId ? 'interviewing' : 'walking',
+        activePatientId: this.activePatientId || undefined
       }));
     }
 
