@@ -38,17 +38,43 @@ const MOCK_VIGNETTE: ClinicalVignette = {
 
 export default function PlayPage() {
   const [activeVignette, setActiveVignette] = useState<ClinicalVignette | null>(null);
+  const [wardFeed, setWardFeed] = useState<Array<{id: string, text: string, type: 'info' | 'success'}>>([]);
 
   // Listen for custom events from Phaser
   useEffect(() => {
     const handleInteract = (e: any) => {
       console.log('🎉 React caught interaction event:', e.detail);
-      // For now, always show the mock vignette regardless of ID
       setActiveVignette(MOCK_VIGNETTE);
     };
 
+    const handleRemoteUpdate = (e: any) => {
+      const remotePlayers = e.detail.players as Map<string, any>;
+      const localPlayer = e.detail.localPlayer;
+      
+      const newFeedEntries: any[] = [];
+      remotePlayers.forEach((player, id) => {
+        if (player.status === 'interviewing' || player.status === 'charting') {
+          const dist = Math.sqrt(Math.pow(player.x - localPlayer.x, 2) + Math.pow(player.y - localPlayer.y, 2));
+          if (dist < 200) { // Eavesdrop radius
+            newFeedEntries.push({
+              id: `${id}-${Date.now()}`,
+              text: `Dr. ${id.substring(0, 4)} is ${player.status === 'interviewing' ? 'interviewing' : 'charting'} a patient nearby...`,
+              type: 'info'
+            });
+          }
+        }
+      });
+      if (newFeedEntries.length > 0) {
+        setWardFeed(prev => [...newFeedEntries, ...prev].slice(0, 5));
+      }
+    };
+
     window.addEventListener('phaser-patient-interact', handleInteract);
-    return () => window.removeEventListener('phaser-patient-interact', handleInteract);
+    window.addEventListener('phaser-remote-update', handleRemoteUpdate);
+    return () => {
+      window.removeEventListener('phaser-patient-interact', handleInteract);
+      window.removeEventListener('phaser-remote-update', handleRemoteUpdate);
+    };
   }, []);
 
   const handleClose = () => {
@@ -135,20 +161,22 @@ export default function PlayPage() {
             <h2 className="font-bold">Ward Feed</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">JD</div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold">Dr. John Doe <span className="text-gray-400 font-normal">at Charting Station B</span></p>
-                <p className="text-sm p-2 bg-gray-50 rounded-lg italic">"Successfully charted Patient #402: Type 2 DM Exacerbation"</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs shrink-0">SC</div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold">Dr. Sarah Connor <span className="text-gray-400 font-normal">at Patient Room 4</span></p>
-                <p className="text-sm p-2 bg-gray-50 rounded-lg italic">"Performing Deep Inquiry... examining vitals."</p>
-              </div>
-            </div>
+            {wardFeed.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center mt-10 italic">No activity detected nearby...</p>
+            ) : (
+              wardFeed.map((item) => (
+                <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${item.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                    DR
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm p-2 bg-gray-50 rounded-lg italic text-gray-700 leading-snug">
+                      {item.text}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </aside>
       </main>

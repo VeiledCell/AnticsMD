@@ -149,6 +149,16 @@ export default class WardScene extends Phaser.Scene {
         status: 'walking'
       }));
     }
+
+    // Every second, dispatch remote updates to React for the Ward Feed
+    if (this.time.now % 1000 < 20) {
+      window.dispatchEvent(new CustomEvent('phaser-remote-update', { 
+        detail: { 
+          players: this.players, 
+          localPlayer: { x: this.player.x, y: this.player.y } 
+        } 
+      }));
+    }
   }
 
   private createIsometricGrid() {
