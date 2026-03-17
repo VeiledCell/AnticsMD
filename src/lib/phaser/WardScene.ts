@@ -68,9 +68,11 @@ export default class WardScene extends Phaser.Scene {
       } else if (data.type === 'update') {
         if (data.player.id !== this.playerId) this.updateRemotePlayer(data.player);
       } else if (data.type === 'lock') {
+        console.log('🔒 Message: Lock received for', data.patientId, 'by', data.playerId);
         this.locks.set(data.patientId, data.playerId);
         this.updatePatientColor(data.patientId);
       } else if (data.type === 'unlock') {
+        console.log('🔓 Message: Unlock received for', data.patientId);
         this.locks.delete(data.patientId);
         this.updatePatientColor(data.patientId);
       } else if (data.type === 'remove') {
