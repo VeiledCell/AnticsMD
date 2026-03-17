@@ -26,8 +26,10 @@ export default function GameCanvas() {
     };
 
     const game = new Phaser.Game(config);
+    (window as any).phaserGame = game;
 
     return () => {
+      delete (window as any).phaserGame;
       game.destroy(true);
     };
   }, []);

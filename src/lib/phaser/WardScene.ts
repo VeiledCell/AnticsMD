@@ -21,6 +21,7 @@ export default class WardScene extends Phaser.Scene {
   };
   private player?: Phaser.GameObjects.Rectangle;
   private patients: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private locks: Map<string, string> = new Map(); // patientId -> playerId
   private playerId: string = Math.random().toString(36).substring(7);
 
   constructor() {
@@ -38,7 +39,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   preload() {
-    // No assets for now, just rectangles
+    // No assets for now
   }
 
   create() {
@@ -58,17 +59,30 @@ export default class WardScene extends Phaser.Scene {
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log('📥 Received message:', data.type);
       if (data.type === 'sync') {
+        this.locks = new Map(Object.entries(data.locks));
         Object.entries(data.players).forEach(([id, p]: [string, any]) => {
           if (id !== this.playerId) this.updateRemotePlayer(p);
         });
+        this.patients.forEach((_, id) => this.updatePatientColor(id));
       } else if (data.type === 'update') {
         if (data.player.id !== this.playerId) this.updateRemotePlayer(data.player);
+      } else if (data.type === 'lock') {
+        this.locks.set(data.patientId, data.playerId);
+        this.updatePatientColor(data.patientId);
+      } else if (data.type === 'unlock') {
+        this.locks.delete(data.patientId);
+        this.updatePatientColor(data.patientId);
       } else if (data.type === 'remove') {
         this.removeRemotePlayer(data.id);
       }
     };
+  }
+
+  private updatePatientColor(id: string) {
+    const p = this.patients.get(id);
+    if (!p) return;
+    p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6); // Red if locked, blue if free
   }
 
   private spawnPatient(id: string, x: number, y: number) {
@@ -78,17 +92,24 @@ export default class WardScene extends Phaser.Scene {
 
     patient.setInteractive();
     patient.on('pointerdown', () => {
-      console.log('👆 Patient clicked:', id);
       if (!this.player) return;
+
+      const lockOwner = this.locks.get(id);
+      if (lockOwner && lockOwner !== this.playerId) {
+        console.log('🔒 Locked by another player');
+        return;
+      }
+
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-      console.log('📍 Distance to patient:', dist);
-      if (dist < 120) { // Increased interaction radius
-        console.log('🎯 Dispatching interaction event');
+      if (dist < 120) {
+        this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
         window.dispatchEvent(new CustomEvent('phaser-patient-interact', { detail: { id } }));
-      } else {
-        console.log('🚶 Too far away to interact');
       }
     });
+  }
+
+  public unlockPatient(id: string) {
+    this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
   }
 
   update() {
@@ -129,21 +150,17 @@ export default class WardScene extends Phaser.Scene {
   private createIsometricGrid() {
     const graphics = this.add.graphics();
     graphics.lineStyle(1, 0xcccccc, 0.5);
-
     const gridSize = 32;
     const rows = 20;
     const cols = 20;
-
     for (let i = 0; i <= rows; i++) {
       graphics.moveTo(0, i * gridSize);
       graphics.lineTo(cols * gridSize, i * gridSize);
     }
-
     for (let j = 0; j <= cols; j++) {
       graphics.moveTo(j * gridSize, 0);
       graphics.lineTo(j * gridSize, rows * gridSize);
     }
-    
     graphics.strokePath();
   }
 

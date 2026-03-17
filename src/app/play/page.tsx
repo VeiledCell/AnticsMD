@@ -51,13 +51,22 @@ export default function PlayPage() {
     return () => window.removeEventListener('phaser-patient-interact', handleInteract);
   }, []);
 
+  const handleClose = () => {
+    if (activeVignette) {
+      const phaserGame = (window as any).phaserGame;
+      const scene = phaserGame?.scene.getScene('WardScene') as any;
+      if (scene) scene.unlockPatient(activeVignette.id);
+    }
+    setActiveVignette(null);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden relative">
       <AnimatePresence>
         {activeVignette && (
           <InterviewMenu 
             vignette={activeVignette} 
-            onClose={() => setActiveVignette(null)} 
+            onClose={handleClose} 
           />
         )}
       </AnimatePresence>
