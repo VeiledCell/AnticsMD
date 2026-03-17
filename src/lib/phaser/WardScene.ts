@@ -59,6 +59,7 @@ export default class WardScene extends Phaser.Scene {
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log('📩 [Socket] Incoming:', data);
       if (data.type === 'sync') {
         this.locks = new Map(Object.entries(data.locks));
         Object.entries(data.players).forEach(([id, p]: [string, any]) => {
