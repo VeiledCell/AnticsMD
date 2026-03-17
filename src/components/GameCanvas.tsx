@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import WardScene from '@/lib/phaser/WardScene';
 
 export default function GameCanvas() {
