@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+neo4j
+chromadb
+supabase
+pydantic
+pydantic-settings
+google-generativeai
+python-dotenv
+asyncio
+httpx

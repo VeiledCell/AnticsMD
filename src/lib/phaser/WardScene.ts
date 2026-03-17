@@ -20,6 +20,7 @@ export default class WardScene extends Phaser.Scene {
     D: Phaser.Input.Keyboard.Key;
   };
   private player?: Phaser.GameObjects.Rectangle;
+  private patients: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private playerId: string = Math.random().toString(36).substring(7);
 
   constructor() {
@@ -46,6 +47,10 @@ export default class WardScene extends Phaser.Scene {
     this.player = this.add.rectangle(400, 300, 32, 32, 0x00ff00);
     this.physics.add.existing(this.player);
 
+    // Mock patient spawning
+    this.spawnPatient('patient-1', 500, 350);
+    this.spawnPatient('patient-2', 200, 450);
+
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -59,6 +64,22 @@ export default class WardScene extends Phaser.Scene {
         this.removeRemotePlayer(data.id);
       }
     };
+  }
+
+  private spawnPatient(id: string, x: number, y: number) {
+    const patient = this.add.rectangle(x, y, 32, 32, 0x3b82f6);
+    this.physics.add.existing(patient, true);
+    this.patients.set(id, patient);
+
+    patient.setInteractive();
+    patient.on('pointerdown', () => {
+      if (!this.player) return;
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
+      if (dist < 80) {
+        // Dispatch to window so React can hear it
+        window.dispatchEvent(new CustomEvent('phaser-patient-interact', { detail: { id } }));
+      }
+    });
   }
 
   update() {

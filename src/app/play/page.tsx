@@ -1,18 +1,66 @@
 'use client';
-
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { Stethoscope, LogOut, Users, Activity } from 'lucide-react';
 import Link from 'next/link';
+import { ClinicalVignette } from '@/types';
+import { AnimatePresence } from 'framer-motion';
+import InterviewMenu from '@/components/InterviewMenu';
 
 // Dynamically import Phaser component as it needs 'window'
 const GameCanvas = dynamic(() => import('@/components/GameCanvas'), {
   ssr: false,
 });
 
+const MOCK_VIGNETTE: ClinicalVignette = {
+  id: 'patient-1',
+  age: 65,
+  gender: 'Male',
+  chiefComplaint: 'Shortness of breath and cough',
+  hpi: [
+    "I've been feeling short of breath for about 3 days now.",
+    "The cough is producing some yellowish phlegm.",
+    "I've had a bit of a fever and chills as well.",
+    "My chest hurts a bit when I take deep breaths."
+  ],
+  vitals: {
+    temp: 101.4,
+    hr: 105,
+    rr: 24,
+    bp: '135/85',
+    spo2: 91
+  },
+  physicalExam: "Dullness to percussion at the right base. Increased tactile fremitus. Crackles heard on auscultation in the right lower lobe.",
+  correctDiagnosis: "Community Acquired Pneumonia",
+  differential: ["CHF Exacerbation", "Pulmonary Embolism", "Acute Bronchitis"],
+  explanation: "Patient presents with classic signs of lobar pneumonia including fever, productive cough, and focal lung exam findings."
+};
+
 export default function PlayPage() {
+  const [activeVignette, setActiveVignette] = useState<ClinicalVignette | null>(null);
+
+  // Listen for custom events from Phaser
+  useEffect(() => {
+    const handleInteract = (e: any) => {
+      // For now, always show the mock vignette regardless of ID
+      setActiveVignette(MOCK_VIGNETTE);
+    };
+
+    window.addEventListener('phaser-patient-interact', handleInteract);
+    return () => window.removeEventListener('phaser-patient-interact', handleInteract);
+  }, []);
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden relative">
+      <AnimatePresence>
+        {activeVignette && (
+          <InterviewMenu 
+            vignette={activeVignette} 
+            onClose={() => setActiveVignette(null)} 
+          />
+        )}
+      </AnimatePresence>
+...
       {/* Game Header */}
       <header className="h-16 bg-white border-b px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">

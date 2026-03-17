@@ -17,6 +17,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.2",
     "clsx": "^2.1.1",
     "firebase": "^12.10.0",
     "framer-motion": "^12.37.0",
