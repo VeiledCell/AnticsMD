@@ -10,7 +10,7 @@ import InterviewMenu from '@/components/InterviewMenu';
 import { saveGameStats, auth } from '@/lib/firebase';
 
 // Dynamically import Phaser component as it needs 'window'
-const GameCanvas = dynamic(() => import('@/components/GameCanvas'), {
+const GameCanvas = dynamicNext(() => import('@/components/GameCanvas'), {
   ssr: false,
 });
 
