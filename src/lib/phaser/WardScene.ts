@@ -105,6 +105,7 @@ export default class WardScene extends Phaser.Scene {
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
       if (dist < 120) {
+        console.log('📤 [Socket] Sending Lock for:', id);
         this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
         window.dispatchEvent(new CustomEvent('phaser-patient-interact', { detail: { id } }));
       }
