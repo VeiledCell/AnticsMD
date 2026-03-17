@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ClinicalVignette } from '@/types';
 import { AnimatePresence } from 'framer-motion';
 import InterviewMenu from '@/components/InterviewMenu';
+import { saveGameStats, auth } from '@/lib/firebase';
 
 // Dynamically import Phaser component as it needs 'window'
 const GameCanvas = dynamic(() => import('@/components/GameCanvas'), {
@@ -48,14 +49,13 @@ export default function PlayPage() {
     };
 
     const handleRemoteUpdate = (e: any) => {
-      const remotePlayers = e.detail.players; // Now a plain object
+      const remotePlayers = e.detail.players; 
       const localPlayer = e.detail.localPlayer;
       
       const newFeedEntries: any[] = [];
       Object.entries(remotePlayers).forEach(([id, player]: [string, any]) => {
         if (player.status === 'interviewing' || player.status === 'charting') {
           const dist = Math.sqrt(Math.pow(player.x - localPlayer.x, 2) + Math.pow(player.y - localPlayer.y, 2));
-          console.log(`📡 Distance to Dr. ${id.substring(0,4)}:`, Math.round(dist));
           if (dist < 400) { 
             newFeedEntries.push({
               id: `${id}-${Date.now()}`,
@@ -71,7 +71,6 @@ export default function PlayPage() {
     };
 
     const handleAutoUnlock = () => {
-      console.log('🚶 React auto-closing menu due to distance');
       setActiveVignette(null);
     };
 
@@ -94,17 +93,46 @@ export default function PlayPage() {
     setActiveVignette(null);
   };
 
+  const handleSubmitDiagnosis = async (diagnosis: string) => {
+    if (!activeVignette) return;
+
+    const isCorrect = diagnosis === activeVignette.correctDiagnosis;
+    const xpEarned = isCorrect ? 50 : 10;
+    const scoreEarned = isCorrect ? 100 : 0;
+
+    const newEntry = {
+      id: `system-${Date.now()}`,
+      text: isCorrect 
+        ? `✅ Success! Patient ${activeVignette.id} diagnosed correctly.` 
+        : `📝 Chart submitted for patient ${activeVignette.id}.`,
+      type: isCorrect ? 'success' : 'info' as 'success' | 'info'
+    };
+    setWardFeed(prev => [newEntry, ...prev]);
+
+    if (auth.currentUser) {
+      await saveGameStats(auth.currentUser.uid, {
+        xp: xpEarned,
+        score: scoreEarned,
+        correct: isCorrect
+      });
+    }
+
+    alert(isCorrect ? "✅ Correct Diagnosis! +100 Points" : "❌ Incorrect. Patient transferred.");
+    handleClose();
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden relative">
       <AnimatePresence>
         {activeVignette && (
           <InterviewMenu 
             vignette={activeVignette} 
-            onClose={handleClose} 
+            onClose={handleClose}
+            onSubmit={handleSubmitDiagnosis}
           />
         )}
       </AnimatePresence>
-...
+
       {/* Game Header */}
       <header className="h-16 bg-white border-b px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
@@ -137,7 +165,7 @@ export default function PlayPage() {
 
       {/* Main Game Area */}
       <main className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Player Stats / Objectives */}
+        {/* Left Sidebar */}
         <aside className="w-64 border-r bg-white p-6 overflow-y-auto hidden lg:block">
           <h2 className="font-bold mb-4">Daily Objectives</h2>
           <div className="space-y-4">
@@ -147,11 +175,6 @@ export default function PlayPage() {
               <div className="mt-2 h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 w-2/5" />
               </div>
-            </div>
-            <div className="p-3 border rounded-lg bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Clinical Logic</p>
-              <p className="text-sm font-medium">No misdiagnoses today</p>
-              <p className="text-xs text-green-600 mt-1 font-medium">Active Streak: 3</p>
             </div>
           </div>
         </aside>
@@ -163,7 +186,7 @@ export default function PlayPage() {
           </Suspense>
         </div>
 
-        {/* Right Sidebar - Feed / Eavesdrop */}
+        {/* Right Sidebar - Feed */}
         <aside className="w-80 border-l bg-white flex flex-col overflow-hidden">
           <div className="p-4 border-b">
             <h2 className="font-bold">Ward Feed</h2>
@@ -173,7 +196,7 @@ export default function PlayPage() {
               <p className="text-sm text-gray-400 text-center mt-10 italic">No activity detected nearby...</p>
             ) : (
               wardFeed.map((item) => (
-                <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div key={item.id} className="flex gap-3">
                   <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${item.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
                     DR
                   </div>
