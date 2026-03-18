@@ -5,10 +5,11 @@ chromadb
 supabase
 pydantic
 pydantic-settings
+google-genai
 google-generativeai
 python-dotenv
 asyncio
-httpx
+httpx<0.28.0
 datasets
 pandas
 tqdm

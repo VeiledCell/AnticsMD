@@ -83,20 +83,30 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private async spawnLivePatients() {
+    console.log('📡 Fetching patients from Supabase...');
     const { data, error } = await supabase
       .from('daily_vignettes')
       .select('id')
       .eq('is_active', true)
-      .limit(5);
+      .limit(10);
 
-    if (data) {
-      data.forEach((row, index) => {
-        const x = 200 + (index * 150);
-        const y = 200 + (Math.random() * 200);
-        this.spawnPatient(row.id.toString(), x, y);
-      });
-      console.log(`🏥 Spawned ${data.length} live patients from Supabase`);
+    if (error) {
+      console.error('❌ Supabase Fetch Error:', error);
+      return;
     }
+
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No active patients found in Supabase table.');
+      return;
+    }
+
+    console.log(`🏥 Found ${data.length} patients. Spawning now...`);
+    data.forEach((row, index) => {
+      const x = 200 + (index * 100);
+      const y = 200 + (Math.random() * 200);
+      console.log(`👤 Spawning patient ID: ${row.id} at (${x}, ${y})`);
+      this.spawnPatient(row.id.toString(), x, y);
+    });
   }
 
   private updatePatientColor(id: string) {

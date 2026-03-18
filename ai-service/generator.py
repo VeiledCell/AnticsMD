@@ -9,8 +9,8 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 class VignetteGenerator:
     def __init__(self):
-        # Using Gemini 2.0 Flash for speed and accuracy
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        # Using Gemini 2.5 Flash for the latest capabilities
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     async def synthesize_vignette(self, medical_facts: dict, template: str = None) -> ClinicalVignette:
         """

@@ -1,54 +1,70 @@
-# ANTICS MD: MASTER SYSTEM ARCHITECTURE
+# ANTICS MD: MASTER SYSTEM ARCHITECTURE (v2)
 
 ## 1. Project Context & Identity
 * **Product Name:** Antic MD
 * **Domain:** `anticsmd.hsieh.org`
 * **Niche:** Competitive Multiplayer Hospital Operations & Clinical Reasoning Simulator.
-* **Shared Auth:** Uses Firebase Project `qrpass-4f170`. 
+* **Shared Auth:** Uses Firebase Project `qrpass-4f170` (`hjxuguoxunslszpbdweh`).
 * **SSO Strategy:** Cross-subdomain session detection via `browserLocalPersistence` (shared with `card.hsieh.org`).
 
 ---
 
-## 2. Infrastructure & Data Layers
-### A. Client Layer (Frontend)
-* **Tech:** Next.js (App Router), Tailwind CSS, Framer Motion.
-* **Rendering:** Isometric 2D hospital floor using Phaser.js or Pixi.js.
-* **Networking:** WebSockets via **PartyKit** for real-time player movement and state sync.
-* **UI Systems:** * Patient Flow Tracker (Real-time unit efficiency dashboard).
-    * Hybrid Dialogue Menu (Static RPG buttons + Open-text LLM input).
-    * Charting Station Interfaces (Physical goal-points in the game world).
+## 2. Detailed Architecture & Data Flow
 
-### B. Application Layer (Backend Logic)
-* **Real-time Engine:** PartyKit (WebSockets) handles coordinate tracking and proximity math.
-* **AI Orchestration:** Python (FastAPI) external service.
-* **Task Management:** Cron/Celery triggers the nightly patient generation batch script.
-* **Event Logic:** * **Proximity Eavesdropping:** Calculates distance between players to unlock dialogue logs.
-    * **Curbside Steal:** Lockout logic when a player charts a patient currently being interviewed by a competitor.
+### A. Client Layer (Frontend)
+*   **Framework:** Next.js (App Router) with `force-dynamic` rendering on `/play`.
+*   **UI/UX:**
+    *   **Styling:** Tailwind CSS.
+    *   **Animation:** Framer Motion for UI popups (`InterviewMenu`).
+*   **Game Engine:** Phaser.js, rendered inside a React `GameCanvas` component.
+    *   **Scene:** `WardScene.ts` manages all game logic, including player movement (WASD/Arrow Keys), patient spawning, and proximity calculations.
+    *   **Communication:** Phaser communicates with React via global `window.dispatchEvent` for events like `phaser-patient-interact` and `phaser-remote-update`.
+*   **Real-time Networking:** `partysocket` client connects to the PartyKit server.
+
+### B. Application Layer (Real-time & AI)
+
+#### B1. Real-time Engine (PartyKit)
+*   **Location:** `party/server.ts`, deployed to PartyKit Cloud.
+*   **Responsibilities:**
+    *   **Player Sync:** Receives `(x, y)` coordinates from clients and broadcasts them to all other players in the room (`hospital-ward`).
+    *   **Competitive Mechanics:**
+        *   **Curbside Steal:** Manages a `locks` object (`patientId -> playerId`) to enforce that only one player can interact with a patient at a time.
+        *   **One Lock Rule:** Automatically releases a player's old lock if they try to lock a new patient.
+    *   **Status Sync:** Broadcasts player `status` (e.g., 'walking', 'interviewing') for eavesdropping.
+
+#### B2. AI Service (Python FastAPI)
+*   **Location:** `/ai-service`, designed to run as a separate server.
+*   **Core RAG Pipeline:**
+    1.  **Ground Truth (Neo4j):** The `/generate/one` endpoint queries a local **Dockerized Neo4j** instance for a disease's pathognomonic symptoms and metadata (e.g., `specialty`).
+    2.  **Style & Tone (ChromaDB):** It then queries a local **Dockerized ChromaDB** for a similar USMLE-style vignette from the **MedQA** dataset.
+    3.  **Synthesis (Gemini):** Both the facts and the style template are passed to the **`gemini-2.5-flash`** model, which generates a high-quality, structured JSON vignette.
+*   **Knowledge Ingestion (Scripts):**
+    *   `extract_medqa_knowledge.py`: An AI-powered script that reads the MedQA dataset, uses Gemini to extract structured `Disease`, `Specialty`, and `Key_Finding` entities, and seeds them into Neo4j.
+    *   `seed_chroma.py`: Seeds ChromaDB with raw vignettes for similarity search.
+    *   `batch_pipeline.py`: Orchestrates the end-to-end generation for all diseases in Neo4j and pushes the results to the Supabase cache.
 
 ### C. Storage & Retrieval (The RAG Pipeline)
-* **Knowledge Layer (Offline):** * **Neo4j AuraDB:** Knowledge Graph for medical ontologies (UMLS/SNOMED) to ensure 100% factual accuracy.
-    * **ChromaDB:** Vector DB for MedQA/USMLE vignette templates.
-* **Cache Database (Live):** PostgreSQL/Supabase. Stores the daily pool of 100 pre-generated vignettes to eliminate live generation latency.
+
+*   **Knowledge Layer (Offline):**
+    *   **Neo4j AuraDB (or local Docker):** Stores the structured **Medical Knowledge Graph** (`:Disease` -> `:Symptom`) extracted from MedQA.
+    *   **ChromaDB (or local Docker):** Stores vector embeddings of **MedQA vignette templates** for tone/style matching.
+*   **Cache Database (Live Game):**
+    *   **Supabase (PostgreSQL):** Hosts the `daily_vignettes` table. This table is populated by the `batch_pipeline.py` script.
+    *   **Frontend Access:** The Next.js app reads directly from this table (`is_active = true`) to fetch the vignettes for the current game session, ensuring low latency.
+*   **Player Stats & Auth:**
+    *   **Firebase Authentication:** Handles user sign-in.
+    *   **Firestore:** The `game_stats` collection stores player XP, Score, and other metrics, updated via the `saveGameStats` helper function.
 
 ---
 
-## 3. Generation Strategy
-* **Nightly Batch Pipeline:** Python script queries Neo4j/ChromaDB -> LLM synthesizes vignettes -> Formats 80% static RPG branching dialogue -> Injects into Cache DB.
-* **Live LLM Reserve:** Gemini API is triggered *only* during "Deep Inquiry" (custom text input) for therapeutic rapport or complex narrative discovery.
-
----
-
-## 4. Core Gameplay Loop & Mechanics
-1. **Spawn:** Patients load from Cache DB and enter the ward floor.
-2. **Flow Management:** Players must clear patients to avoid "Bottleneck" thresholds. If congestion is too high, global unit efficiency drops, penalizing all active scores.
-3. **Hybrid Interview:** * **Static Options:** Free, instant HPI gathering.
-    * **Custom Text:** Costs in-game time/resources but reveals hidden, high-value clinical clues.
-4. **Eavesdrop (Curbside Steal):** Competitors in physical proximity see the active interview log.
-5. **The Sprint:** First player to physically navigate to a Charting Station and submit the correct diagnosis/pathophysiology claims the points.
-
----
-
-## 5. Development Directives
-* **Data Isolation:** All game-specific data (XP, scores, ward metrics) writes to a `game_stats` collection in Firestore, never the main `users` profile.
-* **Performance:** Use PartyKit for "Optimistic UI" movement to ensure the game feels snappy regardless of network ping.
-* **Identity:** Maintain shared TypeScript interfaces for the `User` object across the `hsieh.org` ecosystem.
+## 3. Core Gameplay Loop & Mechanics
+1.  **Spawn:** The `WardScene` in Phaser fetches active vignette IDs from **Supabase** and spawns interactive patient objects on the ward floor.
+2.  **Interact:** A player moves near a patient and clicks, triggering the `phaser-patient-interact` event.
+3.  **Lock & Load:** The client requests a `lock` from the **PartyKit** server. The server verifies the lock, broadcasts the change (turning the patient red for others), and sends the vignette data from Supabase to the player's UI.
+4.  **Hybrid Interview:**
+    *   **Static Options:** The `InterviewMenu` displays the HPI, vitals, and exam findings from the Supabase vignette.
+    *   **Custom Text (Future):** The "Deep Inquiry" box will send custom text to the **AI Service** for real-time answers.
+5.  **Eavesdrop:** Other players' clients receive the `status: 'interviewing'` broadcast from PartyKit. If they are within the `400` unit radius, their "Ward Feed" UI updates.
+6.  **The Sprint:**
+    *   **Auto-Unlock:** If the active player walks away from the patient, the lock is automatically released.
+    *   **Submit & Score:** The player selects a diagnosis and submits. The client checks the `correctDiagnosis` from the vignette, updates the score in **Firestore**, and unlocks the patient.
