@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import PartySocket from 'partysocket';
+import { supabase } from '@/lib/supabase';
 
 interface PlayerData {
   id: string;
@@ -55,9 +56,8 @@ export default class WardScene extends Phaser.Scene {
     this.player = this.add.rectangle(400, 300, 32, 32, 0x00ff00);
     this.physics.add.existing(this.player);
 
-    // Mock patient spawning
-    this.spawnPatient('patient-1', 500, 350);
-    this.spawnPatient('patient-2', 200, 450);
+    // Fetch and spawn real patients from Supabase
+    this.spawnLivePatients();
 
     // Socket listeners
     this.socket.onmessage = (event) => {
@@ -80,6 +80,23 @@ export default class WardScene extends Phaser.Scene {
         this.removeRemotePlayer(data.id);
       }
     };
+  }
+
+  private async spawnLivePatients() {
+    const { data, error } = await supabase
+      .from('daily_vignettes')
+      .select('id')
+      .eq('is_active', true)
+      .limit(5);
+
+    if (data) {
+      data.forEach((row, index) => {
+        const x = 200 + (index * 150);
+        const y = 200 + (Math.random() * 200);
+        this.spawnPatient(row.id.toString(), x, y);
+      });
+      console.log(`🏥 Spawned ${data.length} live patients from Supabase`);
+    }
   }
 
   private updatePatientColor(id: string) {
@@ -105,7 +122,6 @@ export default class WardScene extends Phaser.Scene {
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
       if (dist < this.interactionRadius) {
-        // If we already have a lock, the server will swap them for us
         this.activePatientId = id;
         this.socket.send(JSON.stringify({ type: 'lock', patientId: id }));
         this.socket.send(JSON.stringify({
@@ -139,13 +155,11 @@ export default class WardScene extends Phaser.Scene {
   update(time: number) {
     if (!this.player || !this.cursors || !this.wasd) return;
 
-    // Check for auto-unlock if player walks away
     if (this.activePatientId) {
       const p = this.patients.get(this.activePatientId);
       if (p) {
         const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.x, p.y);
         if (dist > this.autoUnlockRadius) {
-          console.log('🚶 Walked too far away. Auto-unlocking...');
           this.unlockPatient(this.activePatientId);
           window.dispatchEvent(new CustomEvent('phaser-patient-autounlock'));
         }

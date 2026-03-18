@@ -32,11 +32,19 @@ class DatabaseManager:
         Query Neo4j for clinical facts related to a specific medical topic.
         """
         with self.neo4j_driver.session() as session:
-            result = session.run(
-                "MATCH (d:Disease {name: $name})-[:CAUSES]->(s:Symptom) RETURN d.name, collect(s.name) as symptoms",
-                name=topic
-            )
-            return result.single()
+            result = session.run("""
+                MATCH (d:Disease)-[:CAUSES]->(s:Symptom)
+                WHERE d.name = $name
+                RETURN d.name as disease, d.snomed as snomed, collect(s.name) as symptoms
+            """, name=topic)
+            record = result.single()
+            if record:
+                return {
+                    "disease": record["disease"],
+                    "snomed": record["snomed"],
+                    "symptoms": record["symptoms"]
+                }
+            return None
 
     def get_vignette_template(self, query: str):
         """

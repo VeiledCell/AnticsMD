@@ -8,45 +8,47 @@ import { ClinicalVignette } from '@/types';
 import { AnimatePresence } from 'framer-motion';
 import InterviewMenu from '@/components/InterviewMenu';
 import { saveGameStats, auth } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 
-// Dynamically import Phaser component as it needs 'window'
-const GameCanvas = dynamicNext(() => import('@/components/GameCanvas'), {
-  ssr: false,
-});
-
-const MOCK_VIGNETTE: ClinicalVignette = {
-  id: 'patient-1',
-  age: 65,
-  gender: 'Male',
-  chiefComplaint: 'Shortness of breath and cough',
-  hpi: [
-    "I've been feeling short of breath for about 3 days now.",
-    "The cough is producing some yellowish phlegm.",
-    "I've had a bit of a fever and chills as well.",
-    "My chest hurts a bit when I take deep breaths."
-  ],
-  vitals: {
-    temp: 101.4,
-    hr: 105,
-    rr: 24,
-    bp: '135/85',
-    spo2: 91
-  },
-  physicalExam: "Dullness to percussion at the right base. Increased tactile fremitus. Crackles heard on auscultation in the right lower lobe.",
-  correctDiagnosis: "Community Acquired Pneumonia",
-  differential: ["CHF Exacerbation", "Pulmonary Embolism", "Acute Bronchitis"],
-  explanation: "Patient presents with classic signs of lobar pneumonia including fever, productive cough, and focal lung exam findings."
-};
-
-export default function PlayPage() {
+// ... (inside PlayPage)
   const [activeVignette, setActiveVignette] = useState<ClinicalVignette | null>(null);
+  const [allVignettes, setAllVignettes] = useState<ClinicalVignette[]>([]);
   const [wardFeed, setWardFeed] = useState<Array<{id: string, text: string, type: 'info' | 'success'}>>([]);
+
+  // Fetch initial vignettes from Supabase
+  useEffect(() => {
+    const fetchVignettes = async () => {
+      const { data, error } = await supabase
+        .from('daily_vignettes')
+        .select('*')
+        .eq('is_active', true)
+        .limit(10);
+      
+      if (data) {
+        // Map supabase JSON structure to our ClinicalVignette interface
+        const vignettes = data.map((row: any) => ({
+          ...row.data,
+          id: row.id.toString() // Use the DB ID
+        }));
+        setAllVignettes(vignettes);
+        console.log('✅ Loaded live vignettes from Supabase');
+      }
+    };
+    fetchVignettes();
+  }, []);
 
   // Listen for custom events from Phaser
   useEffect(() => {
     const handleInteract = (e: any) => {
       console.log('🎉 React caught interaction event:', e.detail);
-      setActiveVignette(MOCK_VIGNETTE);
+      // Find the vignette matching the ID from Phaser
+      const found = allVignettes.find(v => v.id === e.detail.id);
+      if (found) {
+        setActiveVignette(found);
+      } else if (allVignettes.length > 0) {
+        // Fallback to first one if ID mapping is WIP
+        setActiveVignette(allVignettes[0]);
+      }
     };
 
     const handleRemoteUpdate = (e: any) => {

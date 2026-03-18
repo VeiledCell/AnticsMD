@@ -12,16 +12,19 @@ class VignetteGenerator:
         # Using Gemini 2.0 Flash for speed and accuracy
         self.model = genai.GenerativeModel('gemini-2.0-flash')
 
-    async def synthesize_vignette(self, medical_facts: dict) -> ClinicalVignette:
+    async def synthesize_vignette(self, medical_facts: dict, template: str = None) -> ClinicalVignette:
         """
         Synthesizes a medical vignette based on facts from Neo4j and USMLE templates.
         """
+        template_context = f"\nFollow the professional tone and structure of this USMLE-style example:\n{template}\n" if template else ""
+
         prompt = f"""
         Generate a medical clinical vignette for a competitive hospital simulation game.
-        Base it on the following medical facts: {json.dumps(medical_facts)}
+        Base it on the following medical facts from our knowledge graph: {json.dumps(medical_facts)}
+        {template_context}
 
         The output MUST be in JSON format and match this structure:
-        {{
+        ...
             "age": int,
             "gender": str,
             "chief_complaint": str,

@@ -9,3 +9,6 @@ google-generativeai
 python-dotenv
 asyncio
 httpx
+datasets
+pandas
+tqdm

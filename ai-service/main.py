@@ -9,19 +9,20 @@ generator = VignetteGenerator()
 db = DatabaseManager()
 
 @app.get("/generate/one")
-async def generate_vignette(topic: str = "Pneumonia"):
+async def generate_vignette(topic: str = "Community Acquired Pneumonia"):
     """
     On-demand generation for testing or 'Deep Inquiry'.
     """
-    # 1. Fetch from Neo4j/ChromaDB (mocked for now)
-    facts = {
-        "id": "mock_123",
-        "disease": topic,
-        "symptoms": ["cough", "fever", "chest pain"]
-    }
+    # 1. Fetch real medical facts from Neo4j (Ground Truth)
+    facts = db.get_medical_knowledge(topic)
+    if not facts:
+        raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found in knowledge graph.")
     
-    # 2. Synthesize with Gemini
-    vignette = await generator.synthesize_vignette(facts)
+    # 2. Fetch USMLE-style template from ChromaDB (Tone/Structure)
+    template = db.get_vignette_template(topic)
+    
+    # 3. Synthesize with Gemini using both sources
+    vignette = await generator.synthesize_vignette(facts, template)
     return vignette
 
 @app.post("/pipeline/batch")
