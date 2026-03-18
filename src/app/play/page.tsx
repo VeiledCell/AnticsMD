@@ -10,7 +10,12 @@ import InterviewMenu from '@/components/InterviewMenu';
 import { saveGameStats, auth } from '@/lib/firebase';
 import { supabase } from '@/lib/supabase';
 
-// ... (inside PlayPage)
+// Dynamically import Phaser component as it needs 'window'
+const GameCanvas = dynamicNext(() => import('@/components/GameCanvas'), {
+  ssr: false,
+});
+
+export default function PlayPage() {
   const [activeVignette, setActiveVignette] = useState<ClinicalVignette | null>(null);
   const [allVignettes, setAllVignettes] = useState<ClinicalVignette[]>([]);
   const [wardFeed, setWardFeed] = useState<Array<{id: string, text: string, type: 'info' | 'success'}>>([]);
@@ -25,10 +30,9 @@ import { supabase } from '@/lib/supabase';
         .limit(10);
       
       if (data) {
-        // Map supabase JSON structure to our ClinicalVignette interface
         const vignettes = data.map((row: any) => ({
           ...row.data,
-          id: row.id.toString() // Use the DB ID
+          id: row.id.toString()
         }));
         setAllVignettes(vignettes);
         console.log('✅ Loaded live vignettes from Supabase');
@@ -41,12 +45,10 @@ import { supabase } from '@/lib/supabase';
   useEffect(() => {
     const handleInteract = (e: any) => {
       console.log('🎉 React caught interaction event:', e.detail);
-      // Find the vignette matching the ID from Phaser
       const found = allVignettes.find(v => v.id === e.detail.id);
       if (found) {
         setActiveVignette(found);
       } else if (allVignettes.length > 0) {
-        // Fallback to first one if ID mapping is WIP
         setActiveVignette(allVignettes[0]);
       }
     };
@@ -85,7 +87,7 @@ import { supabase } from '@/lib/supabase';
       window.removeEventListener('phaser-remote-update', handleRemoteUpdate);
       window.removeEventListener('phaser-patient-autounlock', handleAutoUnlock);
     };
-  }, []);
+  }, [allVignettes]);
 
   const handleClose = () => {
     if (activeVignette) {
@@ -112,7 +114,7 @@ import { supabase } from '@/lib/supabase';
     };
     setWardFeed(prev => [newEntry, ...prev]);
 
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       await saveGameStats(auth.currentUser.uid, {
         xp: xpEarned,
         score: scoreEarned,
