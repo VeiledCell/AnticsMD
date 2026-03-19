@@ -12,9 +12,12 @@ export default function GameCanvas() {
 
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
-      width: 800,
-      height: 600,
       parent: gameRef.current,
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        width: '100%',
+        height: '100%',
+      },
       physics: {
         default: 'arcade',
         arcade: {
@@ -35,11 +38,8 @@ export default function GameCanvas() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center bg-slate-900 min-h-[600px] rounded-xl overflow-hidden shadow-2xl">
-      <div ref={gameRef} />
-      <div className="mt-4 p-4 text-white text-sm">
-        <p>Use WASD or Arrow Keys to move. Other players appear as red squares.</p>
-      </div>
+    <div className="w-full h-full bg-black overflow-hidden relative">
+      <div ref={gameRef} className="w-full h-full" />
     </div>
   );
 }
