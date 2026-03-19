@@ -4,9 +4,8 @@ import dynamicNext from 'next/dynamic';
 import { Suspense, useState, useEffect } from 'react';
 import { 
   Stethoscope, LogOut, Users, Activity, 
-  FileText, Bell, Search, LayoutDashboard, Monitor,
-  Microscope, Database, ShieldCheck, HeartPulse,
-  User as UserIcon, Award, MessageSquare
+  FileText, Bell, Search, Award, MessageSquare,
+  Clipboard
 } from 'lucide-react';
 import Link from 'next/link';
 import { ClinicalVignette } from '@/types';
@@ -66,7 +65,6 @@ export default function PlayPage() {
 
     const handleRemoteUpdate = (e: any) => {
       const remotePlayers = e.detail.players; 
-      // Update local players list
       setPlayers(Object.values(remotePlayers));
       
       const localPlayer = e.detail.localPlayer;
@@ -77,7 +75,7 @@ export default function PlayPage() {
           if (dist < 400) { 
             newFeedEntries.push({
               id: `${id}-${Date.now()}`,
-              text: `Dr. ${id.substring(0, 4)} examining Unit ${id.substring(4, 8)}`,
+              text: `Dr. ${id.substring(0, 4)} observing Unit ${id.substring(4, 8)}`,
               type: 'info'
             });
           }
@@ -112,7 +110,7 @@ export default function PlayPage() {
     
     setWardFeed(prev => [{
       id: `sys-${Date.now()}`,
-      text: isCorrect ? `SUCCESS: Unit ${activeVignette.id.substring(0,4)} cured.` : `Dossier submitted for Unit ${activeVignette.id.substring(0,4)}.`,
+      text: isCorrect ? `RESOLVED: Patient ${activeVignette.id.substring(0,4)} cured.` : `CHARTED: Unit ${activeVignette.id.substring(0,4)} submitted.`,
       type: isCorrect ? 'success' : 'info'
     }, ...prev]);
 
@@ -123,154 +121,150 @@ export default function PlayPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#e2e8f0] font-sans selection:bg-indigo-200">
+    <div className="h-screen w-screen bg-[#f0f2f5] flex flex-col overflow-hidden">
       
-      {/* Playful Header */}
-      <header className="h-16 bg-white border-b-4 border-slate-900 px-6 flex items-center justify-between shrink-0 z-50">
+      {/* 1. Header (Skribbl style) */}
+      <header className="h-16 shrink-0 bg-white border-b-4 border-slate-900 px-6 flex items-center justify-between z-50">
         <div className="flex items-center gap-4">
-          <div className="bg-[#6366f1] p-1.5 rounded-xl border-2 border-slate-900 shadow-[2px_2px_0_0_#1e293b]">
-            <Stethoscope className="h-5 w-5 text-white" />
+          <div className="bg-[#6366f1] p-1.5 rounded-xl border-4 border-slate-900">
+            <Stethoscope size={24} className="text-white" />
           </div>
-          <h1 className="font-black text-xl tracking-tighter text-slate-900 uppercase italic">Antics MD</h1>
+          <h1 className="font-black text-2xl tracking-tighter text-slate-900 uppercase italic">Antics MD</h1>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="bg-slate-100 border-2 border-slate-900 px-4 py-1 rounded-lg text-xs font-black uppercase tracking-tight text-slate-600">
-             Node_04.Status: <span className="text-emerald-600">Operational</span>
+          <div className="bg-slate-100 border-4 border-slate-900 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-tight text-slate-600">
+             Node_04 <span className="text-emerald-600 ml-2">● Online</span>
           </div>
-          <Link href="/" className="bg-white border-2 border-slate-900 p-2 rounded-lg hover:bg-slate-50 transition-all shadow-[2px_2px_0_0_#1e293b] active:shadow-none active:translate-x-0.5 active:translate-y-0.5">
-            <LogOut className="h-5 w-5 text-slate-900" />
+          <Link href="/" className="bg-white border-4 border-slate-900 p-2 rounded-xl hover:bg-slate-50 transition-all shadow-[4px_4px_0_0_#1e293b] active:shadow-none active:translate-x-0.5 active:translate-y-0.5">
+            <LogOut size={20} className="text-slate-900" />
           </Link>
         </div>
       </header>
 
-      {/* Main 3-Column Grid */}
-      <main className="flex-1 grid grid-cols-[240px_1fr_350px] overflow-hidden p-4 gap-4">
+      {/* 2. Main Game Body (FORCED HORIZONTAL) */}
+      <main className="flex-1 overflow-hidden min-w-[1200px] flex p-4 gap-4">
         
-        {/* COLUMN 1: MEDICAL TEAM (Players) */}
-        <aside className="bg-white border-4 border-slate-900 rounded-[2rem] flex flex-col overflow-hidden shadow-[6px_6px_0_0_#1e293b]">
-           <div className="p-5 border-b-4 border-slate-900 bg-slate-50">
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                 <Users className="h-4 w-4" /> Medical Team
-              </h2>
+        {/* COLUMN 1: PLAYERS (Fixed Width) */}
+        <aside className="w-[240px] shrink-0 bg-white border-4 border-slate-900 rounded-[2rem] flex flex-col overflow-hidden shadow-[8px_8px_0_0_#1e293b]">
+           <div className="p-5 border-b-4 border-slate-900 bg-slate-50 flex items-center justify-between">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Clinical Team</h2>
+              <Users size={14} className="text-slate-400" />
            </div>
            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-              <div className="bg-indigo-50 border-2 border-slate-900 p-3 rounded-xl flex items-center gap-3">
-                 <div className="h-8 w-8 bg-indigo-600 rounded-full border-2 border-slate-900 flex items-center justify-center text-white font-black text-xs">
+              <div className="bg-indigo-50 border-4 border-slate-900 p-3 rounded-2xl flex items-center gap-3">
+                 <div className="h-10 w-10 bg-indigo-600 rounded-full border-4 border-slate-900 flex items-center justify-center text-white font-black text-sm">
                     DR
                  </div>
                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-slate-900 truncate">YOU</p>
-                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest">Resident</p>
+                    <p className="text-sm font-black text-slate-900 truncate leading-none uppercase italic">{myName}</p>
+                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mt-1">Resident</p>
                  </div>
               </div>
               
               {players.map((p, i) => (
-                <div key={i} className="bg-white border-2 border-slate-200 p-3 rounded-xl flex items-center gap-3 opacity-60">
-                   <div className="h-8 w-8 bg-slate-200 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
+                <div key={i} className="bg-white border-4 border-slate-200 p-3 rounded-2xl flex items-center gap-3 opacity-60">
+                   <div className="h-10 w-10 bg-slate-200 rounded-full border-4 border-slate-200 flex items-center justify-center text-slate-400 font-black text-sm uppercase">
                       {p.id.substring(0, 2)}
                    </div>
                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-600 truncate">Dr. {p.id.substring(0, 4)}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{p.status}</p>
+                      <p className="text-sm font-bold text-slate-600 truncate leading-none uppercase italic">Dr. {p.id.substring(0, 4)}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{p.status}</p>
                    </div>
                 </div>
               ))}
            </div>
-           <div className="p-4 bg-slate-50 border-t-4 border-slate-900">
-              <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
-                 <span>Active Now</span>
-                 <span>{players.length + 1} Units</span>
-              </div>
-           </div>
         </aside>
 
-        {/* COLUMN 2: WARD AREA (Phaser) */}
-        <section className="flex flex-col gap-4">
-           {/* Top Info Bar (Word Hint Area style) */}
-           <div className="h-16 bg-white border-4 border-slate-900 rounded-2xl flex items-center px-6 shadow-[6px_6px_0_0_#1e293b] shrink-0">
-              <div className="flex items-center gap-4">
-                 <div className="h-8 w-8 bg-amber-400 border-2 border-slate-900 rounded-lg flex items-center justify-center">
-                    <Award className="h-5 w-5 text-slate-900" />
+        {/* COLUMN 2: WARD VIEW (Stretches) */}
+        <section className="flex-1 min-w-0 flex flex-col gap-4">
+           {/* Hint Area */}
+           <div className="h-20 shrink-0 bg-white border-4 border-slate-900 rounded-3xl flex items-center px-8 shadow-[8px_8px_0_0_#1e293b]">
+              <div className="flex items-center gap-6">
+                 <div className="h-10 w-10 bg-amber-400 border-4 border-slate-900 rounded-xl flex items-center justify-center shadow-[4px_4px_0_0_#92400e]">
+                    <Award size={24} className="text-slate-900" />
                  </div>
                  <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Active Objective</p>
-                    <p className="text-sm font-black text-slate-900 uppercase">
-                       {activeVignette ? `Diagnosing Patient: #${activeVignette.id.substring(0,6)}` : 'Navigate Ward: Approach Units to engage'}
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Active Medical Objective</p>
+                    <p className="text-xl font-black text-slate-900 uppercase italic">
+                       {activeVignette ? `DIAGNOSING UNIT #${activeVignette.id.substring(0,6)}` : 'SECURE A UNIT TO RETRIEVE CLINICAL DATA'}
                     </p>
                  </div>
               </div>
            </div>
 
-           {/* The Canvas */}
-           <div className="flex-1 bg-white border-4 border-slate-900 rounded-[2.5rem] shadow-[8px_8px_0_0_#1e293b] relative overflow-hidden group">
-              <div className="absolute inset-0 bg-slate-50 opacity-50 pointer-events-none group-hover:opacity-0 transition-opacity" />
-              <Suspense fallback={<div className="h-full w-full flex items-center justify-center font-black text-slate-300 uppercase tracking-[0.5em] animate-pulse">Initializing Aether-Ward...</div>}>
-                <GameCanvas />
-              </Suspense>
+           {/* Game Area */}
+           <div className="flex-1 bg-white border-4 border-slate-900 rounded-[3rem] shadow-[12px_12px_0_0_#1e293b] relative overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 bg-slate-50 opacity-30 pointer-events-none" />
+              <div className="w-full h-full relative z-10">
+                <Suspense fallback={null}>
+                  <GameCanvas />
+                </Suspense>
+              </div>
            </div>
         </section>
 
-        {/* COLUMN 3: COMMS & DOSSIER */}
-        <aside className="bg-white border-4 border-slate-900 rounded-[2rem] flex flex-col overflow-hidden shadow-[6px_6px_0_0_#1e293b]">
-           {/* Tab Nav */}
-           <div className="flex bg-slate-50 border-b-4 border-slate-900">
+        {/* COLUMN 3: EHR TERMINAL (Fixed Width) */}
+        <aside className="w-[380px] shrink-0 bg-white border-4 border-slate-900 rounded-[2rem] flex flex-col overflow-hidden shadow-[8px_8px_0_0_#1e293b]">
+           {/* Tab Navigation */}
+           <div className="flex bg-slate-50 border-b-4 border-slate-900 h-16">
               <button 
                 onClick={() => setActiveTab('feed')}
-                className={`flex-1 py-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'feed' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'feed' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <MessageSquare size={16} /> Comms
+                <MessageSquare size={18} /> Comms
               </button>
               <button 
                 onClick={() => setActiveTab('patient')}
-                className={`flex-1 py-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all border-l-4 border-slate-900 ${activeTab === 'patient' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all border-l-4 border-slate-900 ${activeTab === 'patient' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <FileText size={16} /> Dossier
+                <FileText size={18} /> Dossier
               </button>
            </div>
 
-           <div className="flex-1 overflow-hidden relative flex flex-col">
+           {/* Content View */}
+           <div className="flex-1 overflow-hidden relative flex flex-col bg-white">
               <AnimatePresence mode="wait">
                 {activeTab === 'feed' ? (
                   <motion.div 
                     key="feed"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex-1 flex flex-col p-5"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex-1 flex flex-col p-6"
                   >
-                    <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                       {wardFeed.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-300 italic opacity-50 py-20">
-                          <Bell className="h-12 w-12 mb-4" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">No Active Signals</p>
+                          <Bell size={48} className="mb-4" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Hospital Comms</p>
                         </div>
                       ) : (
                         wardFeed.map((item) => (
-                          <div key={item.id} className="bg-slate-50 border-2 border-slate-900 p-3 rounded-xl relative shadow-[2px_2px_0_0_#1e293b]">
-                            <p className="text-xs font-bold text-slate-700 leading-snug">
-                              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${item.type === 'success' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                          <div key={item.id} className="bg-slate-50 border-4 border-slate-900 p-4 rounded-[1.5rem] relative shadow-[4px_4px_0_0_#1e293b]">
+                            <p className="text-sm font-bold text-slate-700 leading-snug uppercase italic tracking-tight">
+                              <span className={`inline-block w-2.5 h-2.5 rounded-full border-2 border-slate-900 mr-2 ${item.type === 'success' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-indigo-500'}`} />
                               {item.text}
                             </p>
                           </div>
                         ))
                       )}
                     </div>
-                    {/* Fake Chat Input (Skribbl style) */}
-                    <div className="mt-4 pt-4 border-t-2 border-slate-100 flex gap-2">
+                    {/* Chat Input Placeholder */}
+                    <div className="mt-6 pt-6 border-t-4 border-slate-900 flex gap-3">
                        <input 
                          type="text" 
-                         placeholder="Type a clinical note..." 
-                         className="flex-1 bg-slate-50 border-2 border-slate-900 rounded-lg px-3 py-2 text-xs font-bold focus:outline-none"
+                         placeholder="Enter clinical note..." 
+                         className="flex-1 bg-slate-50 border-4 border-slate-900 rounded-2xl px-4 py-3 text-sm font-black uppercase italic placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
                        />
                     </div>
                   </motion.div>
                 ) : (
                   <motion.div 
                     key="patient"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="flex-1 flex flex-col overflow-hidden"
                   >
                     {activeVignette ? (
@@ -281,10 +275,10 @@ export default function PlayPage() {
                         isEmbedded={true}
                       />
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 opacity-30">
-                        <Search className="h-16 w-16 mb-6 text-slate-400" />
-                        <h3 className="text-sm font-black uppercase text-slate-500 tracking-widest mb-2">No Dossier Loaded</h3>
-                        <p className="text-[10px] font-bold text-slate-400 leading-relaxed uppercase">Navigate to a unit to sync records.</p>
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-12 opacity-30 italic">
+                        <Search size={64} className="mb-6 text-slate-400" />
+                        <h3 className="text-lg font-black uppercase text-slate-500 tracking-widest mb-2 italic">Dossier Locked</h3>
+                        <p className="text-xs font-bold text-slate-400 leading-relaxed uppercase">Engage unit on monitor to sync record.</p>
                       </div>
                     )}
                   </motion.div>
@@ -293,20 +287,6 @@ export default function PlayPage() {
            </div>
         </aside>
       </main>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-          border: 2px solid white;
-        }
-      `}</style>
     </div>
   );
 }
