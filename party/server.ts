@@ -36,37 +36,34 @@ export default class Server implements Party.Server {
     }
 
     if (data.type === "lock") {
-      console.log(`🔒 Requesting lock for ${data.patientId} by ${sender.id}`);
-      
       // Check if player already holds any other lock
       const existingLock = Object.keys(this.locks).find(pid => this.locks[pid] === sender.id);
       if (existingLock && existingLock !== data.patientId) {
-        console.log(`♻️ Releasing old lock on ${existingLock} for ${sender.id}`);
         delete this.locks[existingLock];
         this.room.broadcast(JSON.stringify({ type: "unlock", patientId: existingLock }));
       }
 
       if (!this.locks[data.patientId]) {
         this.locks[data.patientId] = sender.id;
-        console.log(`✅ Lock granted for ${data.patientId}`);
         this.room.broadcast(JSON.stringify({ type: "lock", patientId: data.patientId, playerId: sender.id }));
-      } else {
-        console.log(`❌ Lock denied for ${data.patientId} (held by ${this.locks[data.patientId]})`);
       }
     }
 
     if (data.type === "unlock") {
-      console.log(`🔓 Requesting unlock for ${data.patientId} by ${sender.id}`);
       if (this.locks[data.patientId] === sender.id) {
         delete this.locks[data.patientId];
-        console.log(`✅ Unlock successful for ${data.patientId}`);
         this.room.broadcast(JSON.stringify({ type: "unlock", patientId: data.patientId }));
       }
+    }
+
+    // NEW: Handle despawn broadcast
+    if (data.type === "despawn") {
+      console.log(`🧨 Global Despawn Broadcast for patient ${data.patientId}`);
+      this.room.broadcast(JSON.stringify({ type: "despawn", patientId: data.patientId }));
     }
   }
 
   onClose(conn: Party.Connection) {
-    // Clear any locks held by this player
     Object.keys(this.locks).forEach(patientId => {
       if (this.locks[patientId] === conn.id) delete this.locks[patientId];
     });
