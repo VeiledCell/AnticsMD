@@ -24,10 +24,11 @@ class VignetteGenerator:
         {template_context}
 
         The output MUST be in JSON format and match this structure:
-        ...
+        {{
             "age": int,
             "gender": str,
             "chief_complaint": str,
+            "full_vignette": "A dense, professional USMLE-style paragraph describing the case history and exam.",
             "hpi": [str, str, str, str], // 4-5 static dialogue bits for an RPG style interview
             "vitals": {{ "temp": float, "hr": int, "rr": int, "bp": "120/80", "spo2": int }},
             "physical_exam": str,
@@ -41,7 +42,8 @@ class VignetteGenerator:
 
         Guidelines:
         - Ensure 100% factual accuracy for the diagnosis and vitals.
-        - hpi dialogue should be written in a conversational 'RPG patient' tone.
+        - 'full_vignette' should be a single dense paragraph exactly like a MedQA or USMLE Step 1 question stem.
+        - 'hpi' dialogue should be written in a conversational 'RPG patient' tone for interaction.
         - Ensure the diagnosis is clinically plausible for the vitals and PE provided.
         """
 

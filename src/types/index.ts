@@ -26,6 +26,7 @@ export interface ClinicalVignette {
   age: number;
   gender: string;
   chiefComplaint: string;
+  fullVignette: string; // The dense USMLE-style paragraph
   hpi: string[]; // Static RPG branching dialogue bits
   vitals: {
     temp: number;

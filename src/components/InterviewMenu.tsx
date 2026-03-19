@@ -69,31 +69,28 @@ export default function InterviewMenu({ vignette, onClose, onSubmit }: Interview
 
         {/* Dashboard Content */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-          {/* Column 1: HPI & History */}
-          <div className="w-full md:w-1/3 border-r bg-white p-6 overflow-y-auto custom-scrollbar">
-            <div className="flex items-center gap-2 mb-4 text-blue-600">
-              <MessageSquare className="h-5 w-5" />
-              <h4 className="font-bold uppercase text-xs tracking-widest">History of Present Illness</h4>
+          {/* Column 1: Case History (The MedQA Paragraph) */}
+          <div className="w-full md:w-1/2 border-r bg-white p-8 overflow-y-auto custom-scrollbar">
+            <div className="flex items-center gap-2 mb-6 text-blue-600">
+              <FileText className="h-5 w-5" />
+              <h4 className="font-bold uppercase text-xs tracking-widest">Clinical Presentation</h4>
             </div>
-            <div className="space-y-4">
-              {vignette.hpi.map((line, i) => (
-                <div key={i} className="group relative">
-                  <div className="absolute -left-1 top-2 bottom-2 w-0.5 bg-blue-100 group-hover:bg-blue-400 transition-colors" />
-                  <p className="pl-4 text-slate-600 italic text-[14px] leading-relaxed">
-                    "{line}"
-                  </p>
-                </div>
-              ))}
+            
+            {/* The Dense Paragraph */}
+            <div className="prose prose-slate max-w-none">
+              <p className="text-slate-700 text-lg leading-relaxed font-serif first-letter:text-4xl first-letter:font-bold first-letter:text-blue-600 first-letter:mr-1 first-letter:float-left">
+                {vignette.fullVignette || vignette.hpi.join(' ')}
+              </p>
             </div>
 
-            <div className="mt-8 pt-8 border-t">
+            <div className="mt-10 pt-8 border-t">
               <div className="flex items-center gap-2 mb-4 text-slate-700">
                 <Search className="h-5 w-5" />
-                <h4 className="font-bold uppercase text-xs tracking-widest text-slate-500">Deep Inquiry (AI)</h4>
+                <h4 className="font-bold uppercase text-xs tracking-widest text-slate-500">Deep Inquiry (AI Chat)</h4>
               </div>
               <div className="relative group">
                 <textarea
-                  placeholder="Ask for more specific details (e.g. 'Any family history of CAD?')..."
+                  placeholder="Ask for more specific details not mentioned in the stem..."
                   className="w-full h-24 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
                   value={deepInquiry}
                   onChange={(e) => setDeepInquiry(e.target.value)}
@@ -105,8 +102,8 @@ export default function InterviewMenu({ vignette, onClose, onSubmit }: Interview
             </div>
           </div>
 
-          {/* Column 2: Vitals & Exam */}
-          <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
+          {/* Column 2: Objective Data */}
+          <div className="w-full md:w-1/4 p-6 overflow-y-auto bg-slate-50/50 border-r">
             {/* Vitals Grid */}
             <div className="flex items-center gap-2 mb-4 text-red-600">
               <Activity className="h-5 w-5" />

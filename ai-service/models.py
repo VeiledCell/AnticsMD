@@ -13,6 +13,7 @@ class ClinicalVignette(BaseModel):
     age: int
     gender: str
     chief_complaint: str
+    full_vignette: str # The dense USMLE-style paragraph
     hpi: List[str] # RPG static dialogue bits
     vitals: Vitals
     physical_exam: str

@@ -32,7 +32,12 @@ export default function PlayPage() {
       if (data) {
         const vignettes = data.map((row: any) => ({
           ...row.data,
-          id: row.id.toString()
+          id: row.id.toString(),
+          // Map snake_case from python service to camelCase for frontend
+          fullVignette: row.data.full_vignette || row.data.fullVignette,
+          chiefComplaint: row.data.chief_complaint || row.data.chiefComplaint,
+          physicalExam: row.data.physical_exam || row.data.physicalExam,
+          correctDiagnosis: row.data.correct_diagnosis || row.data.correctDiagnosis
         }));
         setAllVignettes(vignettes);
         console.log('✅ Loaded live vignettes from Supabase');
