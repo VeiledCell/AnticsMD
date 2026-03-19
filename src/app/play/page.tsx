@@ -86,11 +86,18 @@ export default function PlayPage() {
       }
     };
 
+    const handleAutoUnlock = () => {
+      setActiveVignette(null);
+      setActiveTab('feed');
+    };
+
     window.addEventListener('phaser-patient-interact', handleInteract);
     window.addEventListener('phaser-remote-update', handleRemoteUpdate);
+    window.addEventListener('phaser-patient-autounlock', handleAutoUnlock);
     return () => {
       window.removeEventListener('phaser-patient-interact', handleInteract);
       window.removeEventListener('phaser-remote-update', handleRemoteUpdate);
+      window.removeEventListener('phaser-patient-autounlock', handleAutoUnlock);
     };
   }, [allVignettes]);
 
