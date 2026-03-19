@@ -112,7 +112,7 @@ export default class WardScene extends Phaser.Scene {
         fontSize: '10px', 
         fontFamily: 'monospace',
         color: '#6366f1',
-        style: 'bold'
+        fontStyle: 'bold'
       });
       
       // Bay partitions
