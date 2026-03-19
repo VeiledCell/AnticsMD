@@ -200,12 +200,14 @@ export default class WardScene extends Phaser.Scene {
     p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6);
   }
 
-  public unlockPatient(id: string) {
-    // Despawn patient upon chart submission (if this was the trigger)
-    const p = this.patients.get(id);
-    if (p) {
-      p.destroy();
-      this.patients.delete(id);
+  public unlockPatient(id: string, isSubmitted: boolean = false) {
+    // Only despawn patient upon chart submission
+    if (isSubmitted) {
+      const p = this.patients.get(id);
+      if (p) {
+        p.destroy();
+        this.patients.delete(id);
+      }
     }
 
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));

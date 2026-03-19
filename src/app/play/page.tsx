@@ -94,11 +94,11 @@ export default function PlayPage() {
     };
   }, [allVignettes]);
 
-  const handleClosePatient = () => {
+  const handleClosePatient = (isSubmitted: boolean = false) => {
     if (activeVignette) {
       const phaserGame = (window as any).phaserGame;
       const scene = phaserGame?.scene.getScene('WardScene') as any;
-      if (scene) scene.unlockPatient(activeVignette.id);
+      if (scene) scene.unlockPatient(activeVignette.id, isSubmitted);
     }
     setActiveVignette(null);
     setActiveTab('feed');
@@ -117,7 +117,7 @@ export default function PlayPage() {
     if (auth?.currentUser) {
       await saveGameStats(auth.currentUser.uid, { xp: isCorrect ? 50 : 10, score: isCorrect ? 100 : 0, correct: isCorrect });
     }
-    handleClosePatient();
+    handleClosePatient(true); // Pass true to despawn
   };
 
   return (
