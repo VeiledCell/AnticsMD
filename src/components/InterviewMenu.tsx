@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  X, Send, User, Thermometer, Heart, Activity, 
+  X, User, Thermometer, Heart, Activity, 
   Droplets, ClipboardCheck, Stethoscope, Wind,
-  Search, FileText, AlertCircle, Bookmark
+  FileText, AlertCircle, Info
 } from 'lucide-react';
 import { ClinicalVignette } from '@/types';
 
@@ -18,7 +18,6 @@ interface InterviewMenuProps {
 
 export default function InterviewMenu({ vignette, onClose, onSubmit, isEmbedded = false }: InterviewMenuProps) {
   const [selectedDiagnosis, setSelectedDiagnosis] = useState('');
-  const [deepInquiry, setDeepInquiry] = useState('');
 
   const handleChartSubmit = () => {
     if (selectedDiagnosis) {
@@ -29,129 +28,135 @@ export default function InterviewMenu({ vignette, onClose, onSubmit, isEmbedded 
   const allDiagnoses = [vignette.correctDiagnosis, ...vignette.differential].sort();
 
   const content = (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Patient Profile Header */}
-      <div className="border-b-2 border-[#1a1410]/20 pb-4 mb-6 flex justify-between items-start">
+    <div className="flex-1 flex flex-col overflow-hidden bg-white">
+      {/* Dossier Header */}
+      <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start shrink-0">
         <div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter text-[#2a1f18] italic flex items-center gap-3">
-            <Bookmark className="h-6 w-6 text-[#8b5a2b]" />
-            Dossier: #{vignette.id.substring(0, 5)}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded tracking-widest uppercase">Clinical Dossier</span>
+            <span className="text-slate-400 text-[10px] font-bold">UID: {vignette.id.substring(0, 8)}</span>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
+            {vignette.age}y {vignette.gender} • <span className="text-blue-600 font-medium">{vignette.chiefComplaint}</span>
           </h2>
-          <p className="text-sm font-bold text-[#8b5a2b] uppercase tracking-widest mt-1">
-            {vignette.age}yr {vignette.gender} • <span className="text-red-900">{vignette.chiefComplaint}</span>
-          </p>
         </div>
         {!isEmbedded && (
-           <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors">
-             <X className="h-6 w-6 text-[#1a1410]" />
+           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400">
+             <X className="h-5 w-5" />
            </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-8">
-        {/* Case Presentation */}
+      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-10 custom-scrollbar">
+        {/* Case Presentation (MedQA Paragraph) */}
         <section>
-          <div className="flex items-center gap-2 mb-3 text-[#1a1410] opacity-60">
-            <FileText className="h-4 w-4" />
-            <h4 className="font-bold uppercase text-[10px] tracking-[0.2em]">Clinical Presentation</h4>
+          <div className="flex items-center gap-2 mb-4">
+             <div className="h-6 w-1 bg-blue-600 rounded-full" />
+             <h4 className="font-bold text-xs uppercase tracking-widest text-slate-500">Clinical Presentation</h4>
           </div>
-          <div className="bg-white/40 p-6 rounded-xl border border-[#1a1410]/10 italic leading-relaxed text-[#2a1f18] font-serif shadow-inner">
-             {vignette.fullVignette || vignette.hpi.join(' ')}
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+             <p className="text-slate-700 text-[16px] leading-relaxed font-normal italic">
+                {vignette.fullVignette || vignette.hpi.join(' ')}
+             </p>
           </div>
         </section>
 
-        {/* Vitals Grid */}
+        {/* Vital Signs */}
         <section>
-          <div className="flex items-center gap-2 mb-3 text-[#1a1410] opacity-60">
-            <Activity className="h-4 w-4" />
-            <h4 className="font-bold uppercase text-[10px] tracking-[0.2em]">Objective Vitals</h4>
+          <div className="flex items-center gap-2 mb-4">
+             <div className="h-6 w-1 bg-red-500 rounded-full" />
+             <h4 className="font-bold text-xs uppercase tracking-widest text-slate-500">Objective Vital Signs</h4>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <VitalCard icon={<Thermometer className="h-4 w-4" />} label="Temp" value={`${vignette.vitals.temp}°F`} />
-            <VitalCard icon={<Heart className="h-4 w-4" />} label="Pulse" value={`${vignette.vitals.hr} bpm`} />
-            <VitalCard icon={<Droplets className="h-4 w-4" />} label="Pressure" value={vignette.vitals.bp} />
-            <VitalCard icon={<Wind className="h-4 w-4" />} label="Resp" value={`${vignette.vitals.rr || 16}/m`} />
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <VitalRow icon={<Thermometer className="h-4 w-4 text-red-500" />} label="Temperature" value={`${vignette.vitals.temp}°F`} />
+            <VitalRow icon={<Heart className="h-4 w-4 text-pink-500" />} label="Heart Rate" value={`${vignette.vitals.hr} bpm`} />
+            <VitalRow icon={<Droplets className="h-4 w-4 text-blue-500" />} label="Blood Pressure" value={vignette.vitals.bp} />
+            <VitalRow icon={<Wind className="h-4 w-4 text-cyan-500" />} label="Resp. Rate" value={`${vignette.vitals.rr || 16}/m`} />
+            <VitalRow icon={<Activity className="h-4 w-4 text-emerald-500" />} label="SpO2" value={`${vignette.vitals.spo2}%`} />
           </div>
         </section>
 
-        {/* Physical Exam */}
+        {/* Examination Findings */}
         <section>
-          <div className="flex items-center gap-2 mb-3 text-[#1a1410] opacity-60">
-            <Stethoscope className="h-4 w-4" />
-            <h4 className="font-bold uppercase text-[10px] tracking-[0.2em]">Examination Findings</h4>
+          <div className="flex items-center gap-2 mb-4">
+             <div className="h-6 w-1 bg-emerald-500 rounded-full" />
+             <h4 className="font-bold text-xs uppercase tracking-widest text-slate-500">Physical Examination</h4>
           </div>
-          <div className="bg-[#1a1410]/5 p-5 rounded-xl border border-[#1a1410]/10 text-sm text-[#2a1f18] font-medium leading-loose">
+          <div className="bg-slate-50 border border-slate-200 p-6 rounded-2xl text-[15px] text-slate-700 leading-relaxed">
             {vignette.physicalExam}
           </div>
         </section>
 
-        {/* Diagnostic Action */}
-        <section className="pt-4 border-t-2 border-[#1a1410]/10 pb-10">
-          <div className="flex items-center gap-2 mb-4 text-[#8b5a2b]">
-            <ClipboardCheck className="h-5 w-5" />
-            <h4 className="font-bold uppercase text-xs tracking-widest">Final Diagnosis Selection</h4>
+        {/* Diagnosis Selection */}
+        <section className="pt-6 border-t border-slate-100 pb-12">
+          <div className="flex items-center gap-2 mb-6 text-slate-800">
+            <ClipboardCheck className="h-5 w-5 text-blue-600" />
+            <h4 className="font-bold text-sm">Finalize Clinical Chart</h4>
           </div>
           
-          <div className="grid gap-2">
+          <div className="grid gap-3 mb-8">
             {allDiagnoses.map((dx) => (
               <button
                 key={dx}
                 onClick={() => setSelectedDiagnosis(dx)}
-                className={`w-full p-4 text-left rounded-xl border-2 transition-all ${
+                className={`w-full p-4 text-left rounded-xl border transition-all flex items-center justify-between group ${
                   selectedDiagnosis === dx 
-                  ? 'border-[#8b5a2b] bg-[#3d2b1f] text-[#e6d5b8] shadow-lg' 
-                  : 'border-[#1a1410]/10 bg-white/50 hover:bg-white/80 text-[#2a1f18]'
+                  ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-1 ring-blue-600' 
+                  : 'border-slate-200 bg-white hover:border-blue-300 text-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm ${selectedDiagnosis === dx ? 'font-bold' : 'font-medium'}`}>{dx}</span>
-                  {selectedDiagnosis === dx && <div className="h-2 w-2 rounded-full bg-[#cd7f32] shadow-[0_0_5px_#cd7f32]" />}
+                <span className={`text-sm ${selectedDiagnosis === dx ? 'font-bold text-blue-700' : 'font-medium'}`}>{dx}</span>
+                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedDiagnosis === dx ? 'border-blue-600 bg-blue-600' : 'border-slate-200 group-hover:border-blue-300'}`}>
+                   {selectedDiagnosis === dx && <div className="h-2 w-2 rounded-full bg-white" />}
                 </div>
               </button>
             ))}
           </div>
 
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 mb-6">
+             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+             <p className="text-[12px] text-amber-800 leading-snug">
+                Submit medical findings to the ward attending. Once submitted, the clinical chart is locked and the patient will be transferred for treatment.
+             </p>
+          </div>
+
           <button
             onClick={handleChartSubmit}
             disabled={!selectedDiagnosis}
-            className="w-full mt-6 bg-[#2a1f18] text-[#cd7f32] font-black py-4 rounded-xl shadow-xl hover:bg-[#3d2b1f] disabled:opacity-20 disabled:grayscale transition-all uppercase tracking-[0.2em] text-xs border-b-4 border-black"
+            className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:opacity-30 disabled:shadow-none transition-all flex items-center justify-center gap-2"
           >
-            Submit Clinical Chart
+            <FileText className="h-5 w-5" />
+            Submit Final Assessment
           </button>
         </section>
       </div>
     </div>
   );
 
-  if (isEmbedded) {
-    return content;
-  }
+  if (isEmbedded) return content;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 50 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 50 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#1a1410]/80 backdrop-blur-md"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
     >
-      <div className="bg-[#e6d5b8] w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl border-8 border-[#3d2b1f] overflow-hidden p-8 flex flex-col relative">
-        <div className="absolute inset-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
+      <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200">
         {content}
       </div>
     </motion.div>
   );
 }
 
-function VitalCard({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
+function VitalRow({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
   return (
-    <div className="p-4 rounded-xl bg-white/40 border border-[#1a1410]/10 flex items-center gap-4 shadow-sm group hover:bg-white/60 transition-colors">
-      <div className="h-10 w-10 rounded-lg bg-[#3d2b1f] flex items-center justify-center text-[#cd7f32] shadow-inner group-hover:rotate-6 transition-transform">
+    <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm flex flex-col gap-1.5 hover:border-slate-300 transition-colors">
+      <div className="flex items-center gap-2 text-slate-400">
         {icon}
+        <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
       </div>
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-widest text-[#8b5a2b] mb-0.5">{label}</p>
-        <p className="text-base font-black text-[#1a1410] tracking-tight">{value}</p>
-      </div>
+      <p className="text-base font-black text-slate-800 leading-none">{value}</p>
     </div>
   );
 }
