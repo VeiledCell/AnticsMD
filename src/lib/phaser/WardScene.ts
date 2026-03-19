@@ -233,8 +233,10 @@ export default class WardScene extends Phaser.Scene {
       if (p) {
         const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.x, p.y);
         if (dist > this.autoUnlockRadius) {
-          this.unlockPatient(this.activePatientId);
+          const id = this.activePatientId;
+          // Dispatch BEFORE clearing activePatientId so UI can respond
           window.dispatchEvent(new CustomEvent('phaser-patient-autounlock'));
+          this.unlockPatient(id, false); // false = don't despawn
         }
       }
     }

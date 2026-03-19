@@ -87,6 +87,7 @@ export default function PlayPage() {
     };
 
     const handleAutoUnlock = () => {
+      console.log('🔓 Phaser triggered autounlock');
       setActiveVignette(null);
       setActiveTab('feed');
     };
