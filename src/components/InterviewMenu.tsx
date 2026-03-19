@@ -1,8 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, User, Thermometer, Heart, Activity, Droplets, ClipboardCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { 
+  X, Send, User, Thermometer, Heart, Activity, 
+  Droplets, ClipboardCheck, Stethoscope, Wind,
+  MessageSquare, Search, FileText, AlertCircle
+} from 'lucide-react';
 import { ClinicalVignette } from '@/types';
 
 interface InterviewMenuProps {
@@ -12,7 +16,6 @@ interface InterviewMenuProps {
 }
 
 export default function InterviewMenu({ vignette, onClose, onSubmit }: InterviewMenuProps) {
-  const [activeTab, setActiveTab] = useState<'hpi' | 'vitals' | 'exam' | 'chart'>('hpi');
   const [selectedDiagnosis, setSelectedDiagnosis] = useState('');
   const [deepInquiry, setDeepInquiry] = useState('');
 
@@ -22,161 +25,191 @@ export default function InterviewMenu({ vignette, onClose, onSubmit }: Interview
     }
   };
 
+  const allDiagnoses = [vignette.correctDiagnosis, ...vignette.differential].sort();
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={{ opacity: 0, scale: 0.9, y: 50 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-      className="absolute bottom-10 left-1/2 -translate-x-1/2 w-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-50"
+      exit={{ opacity: 0, scale: 0.9, y: 50 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Header */}
-      <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-full">
-            <User className="h-5 w-5" />
+      <div className="bg-slate-50 w-full max-w-6xl max-h-[90vh] rounded-3xl shadow-2xl border border-white/20 overflow-hidden flex flex-col">
+        {/* Modern Clinical Header */}
+        <div className="bg-white border-b px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="h-14 w-14 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
+              <User className="h-8 w-8" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-xl font-bold text-slate-800">Room #402 • Patient File</h3>
+                <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active Rounding</span>
+              </div>
+              <p className="text-slate-500 font-medium flex items-center gap-2">
+                {vignette.age}y {vignette.gender} • <span className="text-blue-600">{vignette.chiefComplaint}</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold">Patient Room: #402</h3>
-            <p className="text-xs text-blue-100">{vignette.age}y {vignette.gender} • {vignette.chiefComplaint}</p>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-slate-400 uppercase font-bold tracking-tight">Assigned Physician</p>
+              <p className="text-sm font-semibold text-slate-700">Dr. Resident (You)</p>
+            </div>
+            <button 
+              onClick={onClose}
+              className="hover:bg-slate-100 p-2 rounded-xl transition-all text-slate-400 hover:text-slate-600 border border-transparent hover:border-slate-200"
+            >
+              <X className="h-6 w-6" />
+            </button>
           </div>
         </div>
-        <button onClick={onClose} className="hover:bg-white/10 p-1 rounded-full transition-colors">
-          <X className="h-6 w-6" />
-        </button>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b text-sm font-medium">
-        <button
-          onClick={() => setActiveTab('hpi')}
-          className={`flex-1 py-3 px-4 ${activeTab === 'hpi' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-        >
-          Interview
-        </button>
-        <button
-          onClick={() => setActiveTab('vitals')}
-          className={`flex-1 py-3 px-4 ${activeTab === 'vitals' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-        >
-          Vitals
-        </button>
-        <button
-          onClick={() => setActiveTab('exam')}
-          className={`flex-1 py-3 px-4 ${activeTab === 'exam' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
-        >
-          Exam
-        </button>
-        <button
-          onClick={() => setActiveTab('chart')}
-          className={`flex-1 py-3 px-4 bg-amber-50 ${activeTab === 'chart' ? 'text-amber-600 border-b-2 border-amber-600' : 'text-amber-700'}`}
-        >
-          Chart (Submit)
-        </button>
-      </div>
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+          {/* Column 1: HPI & History */}
+          <div className="w-full md:w-1/3 border-r bg-white p-6 overflow-y-auto custom-scrollbar">
+            <div className="flex items-center gap-2 mb-4 text-blue-600">
+              <MessageSquare className="h-5 w-5" />
+              <h4 className="font-bold uppercase text-xs tracking-widest">History of Present Illness</h4>
+            </div>
+            <div className="space-y-4">
+              {vignette.hpi.map((line, i) => (
+                <div key={i} className="group relative">
+                  <div className="absolute -left-1 top-2 bottom-2 w-0.5 bg-blue-100 group-hover:bg-blue-400 transition-colors" />
+                  <p className="pl-4 text-slate-600 italic text-[14px] leading-relaxed">
+                    "{line}"
+                  </p>
+                </div>
+              ))}
+            </div>
 
-      {/* Content */}
-      <div className="h-[300px] overflow-y-auto p-6 bg-gray-50">
-        {activeTab === 'hpi' && (
-          <div className="space-y-4">
-            {vignette.hpi.map((line, i) => (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                key={i}
-                className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 italic text-sm text-gray-700"
-              >
-                "{line}"
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'vitals' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-xl border flex items-center gap-3">
-              <Thermometer className="text-red-500" />
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Temp</p>
-                <p className="font-bold">{vignette.vitals.temp}°F</p>
+            <div className="mt-8 pt-8 border-t">
+              <div className="flex items-center gap-2 mb-4 text-slate-700">
+                <Search className="h-5 w-5" />
+                <h4 className="font-bold uppercase text-xs tracking-widest text-slate-500">Deep Inquiry (AI)</h4>
               </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border flex items-center gap-3">
-              <Heart className="text-pink-500" />
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Heart Rate</p>
-                <p className="font-bold">{vignette.vitals.hr} bpm</p>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border flex items-center gap-3">
-              <Droplets className="text-blue-500" />
-              <div>
-                <p className="text-xs text-gray-500 uppercase">BP</p>
-                <p className="font-bold">{vignette.vitals.bp}</p>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border flex items-center gap-3">
-              <Activity className="text-green-500" />
-              <div>
-                <p className="text-xs text-gray-500 uppercase">SpO2</p>
-                <p className="font-bold">{vignette.vitals.spo2}%</p>
+              <div className="relative group">
+                <textarea
+                  placeholder="Ask for more specific details (e.g. 'Any family history of CAD?')..."
+                  className="w-full h-24 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                  value={deepInquiry}
+                  onChange={(e) => setDeepInquiry(e.target.value)}
+                />
+                <button className="absolute bottom-3 right-3 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl shadow-lg shadow-blue-200 transition-all">
+                  <Send className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
-        )}
 
-        {activeTab === 'exam' && (
-          <div className="bg-white p-4 rounded-xl border">
-            <p className="text-sm text-gray-700 leading-relaxed">{vignette.physicalExam}</p>
+          {/* Column 2: Vitals & Exam */}
+          <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
+            {/* Vitals Grid */}
+            <div className="flex items-center gap-2 mb-4 text-red-600">
+              <Activity className="h-5 w-5" />
+              <h4 className="font-bold uppercase text-xs tracking-widest">Objective Vitals</h4>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+              <VitalCard icon={<Thermometer className="h-4 w-4 text-red-500" />} label="Temp" value={`${vignette.vitals.temp}°F`} color="red" />
+              <VitalCard icon={<Heart className="h-4 w-4 text-pink-500" />} label="HR" value={`${vignette.vitals.hr} bpm`} color="pink" />
+              <VitalCard icon={<Droplets className="h-4 w-4 text-blue-500" />} label="BP" value={vignette.vitals.bp} color="blue" />
+              <VitalCard icon={<Wind className="h-4 w-4 text-cyan-500" />} label="RR" value={`${vignette.vitals.rr || 16} /m`} color="cyan" />
+              <VitalCard icon={<Activity className="h-4 w-4 text-green-500" />} label="SpO2" value={`${vignette.vitals.spo2}%`} color="green" />
+            </div>
+
+            {/* Physical Exam */}
+            <div className="flex items-center gap-2 mb-4 text-emerald-600">
+              <Stethoscope className="h-5 w-5" />
+              <h4 className="font-bold uppercase text-xs tracking-widest">Physical Examination</h4>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <p className="text-slate-700 text-[15px] leading-loose whitespace-pre-wrap">
+                {vignette.physicalExam}
+              </p>
+            </div>
+
+            {/* Potential Labs/Imaging placeholder */}
+            <div className="mt-6 flex gap-4">
+              <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border border-slate-200">
+                Order Labs
+              </button>
+              <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border border-slate-200">
+                Imaging (STAT)
+              </button>
+            </div>
           </div>
-        )}
 
-        {activeTab === 'chart' && (
-          <div className="space-y-4">
-            <h4 className="font-bold text-gray-700 flex items-center gap-2">
-              <ClipboardCheck className="h-4 w-4" />
-              Select Final Diagnosis:
-            </h4>
-            <div className="grid gap-3">
-              {[vignette.correctDiagnosis, ...vignette.differential].sort().map((dx) => (
+          {/* Column 3: Diagnostic Chart (Action) */}
+          <div className="w-full md:w-1/4 bg-slate-100/80 p-6 border-l flex flex-col">
+            <div className="flex items-center gap-2 mb-6 text-amber-600">
+              <ClipboardCheck className="h-6 w-6" />
+              <h4 className="font-bold uppercase text-xs tracking-widest">Clinical Chart</h4>
+            </div>
+            
+            <p className="text-xs text-slate-500 font-bold mb-4 uppercase tracking-tight">Primary Diagnosis</p>
+            <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+              {allDiagnoses.map((dx) => (
                 <button
                   key={dx}
                   onClick={() => setSelectedDiagnosis(dx)}
-                  className={`p-3 text-left rounded-xl border-2 transition-all text-sm ${
+                  className={`w-full p-4 text-left rounded-2xl border-2 transition-all group ${
                     selectedDiagnosis === dx 
-                    ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium' 
-                    : 'border-gray-200 bg-white hover:border-blue-300'
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-100' 
+                    : 'border-white bg-white hover:border-blue-200 text-slate-700 shadow-sm'
                   }`}
                 >
-                  {dx}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm ${selectedDiagnosis === dx ? 'font-bold' : 'font-medium'}`}>{dx}</span>
+                    <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${selectedDiagnosis === dx ? 'border-white bg-white' : 'border-slate-200 group-hover:border-blue-300'}`}>
+                      {selectedDiagnosis === dx && <div className="h-2 w-2 rounded-full bg-blue-600" />}
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
-            <button
-              onClick={handleChartSubmit}
-              disabled={!selectedDiagnosis}
-              className="w-full mt-4 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              Submit Clinical Chart
-            </button>
-          </div>
-        )}
-      </div>
 
-      {/* Deep Inquiry Input */}
-      {activeTab !== 'chart' && (
-        <div className="p-4 bg-white border-t flex gap-2">
-          <input
-            type="text"
-            placeholder="Ask a specific clinical question..."
-            className="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={deepInquiry}
-            onChange={(e) => setDeepInquiry(e.target.value)}
-          />
-          <button className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors">
-            <Send className="h-4 w-4" />
-          </button>
+            <div className="mt-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
+                <p className="text-[11px] text-amber-800 leading-tight">
+                  Submission will lock this chart and transfer the patient. Ensure diagnosis is supported by findings.
+                </p>
+              </div>
+              <button
+                onClick={handleChartSubmit}
+                disabled={!selectedDiagnosis}
+                className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <FileText className="h-5 w-5" />
+                Finalize Chart
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </motion.div>
+  );
+}
+
+function VitalCard({ icon, label, value, color }: { icon: React.ReactNode, label: string, value: string, color: string }) {
+  const colorMap: Record<string, string> = {
+    red: 'bg-red-50 text-red-700 border-red-100',
+    pink: 'bg-pink-50 text-pink-700 border-pink-100',
+    blue: 'bg-blue-50 text-blue-700 border-blue-100',
+    cyan: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+    green: 'bg-green-50 text-green-700 border-green-100',
+  };
+
+  return (
+    <div className={`p-3 rounded-2xl border flex flex-col gap-1 ${colorMap[color] || 'bg-white'}`}>
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-[10px] font-bold uppercase opacity-60">{label}</span>
+      </div>
+      <p className="text-lg font-black tracking-tight leading-none pt-1">{value}</p>
+    </div>
   );
 }
