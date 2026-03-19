@@ -59,6 +59,16 @@ export default class WardScene extends Phaser.Scene {
     // Fetch and spawn real patients from Supabase
     this.spawnLivePatients();
 
+    // Fallback patients in case Supabase is empty/fails
+    this.time.delayedCall(3000, () => {
+      if (this.patients.size === 0) {
+        console.log('⚠️ No patients spawned from Supabase after 3s. Spawning fallbacks...');
+        for (let i = 0; i < 3; i++) {
+          this.spawnPatient(`fallback-${i}`, 150, 150 + (i * 100));
+        }
+      }
+    });
+
     // Socket listeners
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -83,30 +93,34 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private async spawnLivePatients() {
-    console.log('📡 Fetching patients from Supabase...');
-    const { data, error } = await supabase
-      .from('daily_vignettes')
-      .select('id')
-      .eq('is_active', true)
-      .limit(10);
+    try {
+      console.log('📡 Fetching patients from Supabase...');
+      const { data, error } = await supabase
+        .from('daily_vignettes')
+        .select('id')
+        .eq('is_active', true)
+        .limit(10);
 
-    if (error) {
-      console.error('❌ Supabase Fetch Error:', error);
-      return;
+      if (error) {
+        console.error('❌ Supabase Fetch Error:', error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ No active patients found in Supabase table.');
+        return;
+      }
+
+      console.log(`🏥 Found ${data.length} patients in Supabase. Spawning now...`);
+      data.forEach((row, index) => {
+        const x = 200 + (index * 100);
+        const y = 200 + (Math.random() * 200);
+        console.log(`👤 Spawning patient ID: ${row.id} at (${x}, ${y})`);
+        this.spawnPatient(row.id.toString(), x, y);
+      });
+    } catch (e) {
+      console.error('❌ Exception in spawnLivePatients:', e);
     }
-
-    if (!data || data.length === 0) {
-      console.warn('⚠️ No active patients found in Supabase table.');
-      return;
-    }
-
-    console.log(`🏥 Found ${data.length} patients. Spawning now...`);
-    data.forEach((row, index) => {
-      const x = 200 + (index * 100);
-      const y = 200 + (Math.random() * 200);
-      console.log(`👤 Spawning patient ID: ${row.id} at (${x}, ${y})`);
-      this.spawnPatient(row.id.toString(), x, y);
-    });
   }
 
   private updatePatientColor(id: string) {
