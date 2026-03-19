@@ -37,7 +37,6 @@ export default class WardScene extends Phaser.Scene {
     { x: 150, y: 150, id: 'bay-1' }, { x: 400, y: 150, id: 'bay-2' }, { x: 650, y: 150, id: 'bay-3' },
     { x: 150, y: 450, id: 'bay-4' }, { x: 400, y: 450, id: 'bay-5' }, { x: 650, y: 450, id: 'bay-6' }
   ];
-  private occupiedBays: Set<string> = new Set();
 
   constructor() {
     super('WardScene');
@@ -54,6 +53,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   create() {
+    console.log('🏗️ WardScene created. Player ID:', this.playerId);
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
 
@@ -90,23 +90,24 @@ export default class WardScene extends Phaser.Scene {
         this.updatePatientColor(data.patientId);
       } else if (data.type === 'remove') {
         this.removeRemotePlayer(data.id);
+      } else if (data.type === 'despawn') {
+        // Handle global despawn from other players
+        this.internalDespawn(data.patientId);
       }
     };
 
-    this.events.on('shutdown', () => this.socket.close());
+    this.events.on('shutdown', () => {
+      console.log('🔌 Scene shutdown - closing socket');
+      this.socket.close();
+    });
     this.events.on('destroy', () => this.socket.close());
   }
 
   private createWardEnvironment() {
-    // 1. Draw Floor
     this.add.grid(400, 300, 800, 600, 40, 40, 0xf8fafc, 1, 0xe2e8f0);
-    
-    // 2. Ward Boundaries (Walls)
     const walls = this.physics.add.staticGroup();
     
-    // Create patient bays
     this.BAY_COORDINATES.forEach(bay => {
-      // Bay floor highlight
       this.add.rectangle(bay.x, bay.y, 120, 120, 0xeef2ff).setDepth(-1).setStrokeStyle(2, 0xc7d2fe);
       this.add.text(bay.x - 50, bay.y - 55, bay.id.toUpperCase(), { 
         fontSize: '10px', 
@@ -114,15 +115,10 @@ export default class WardScene extends Phaser.Scene {
         color: '#6366f1',
         fontStyle: 'bold'
       });
-      
-      // Bay partitions
-      const leftPartition = this.add.rectangle(bay.x - 60, bay.y, 4, 120, 0xcbd5e1);
-      const rightPartition = this.add.rectangle(bay.x + 60, bay.y, 4, 120, 0xcbd5e1);
-      walls.add(leftPartition);
-      walls.add(rightPartition);
+      walls.add(this.add.rectangle(bay.x - 60, bay.y, 4, 120, 0xcbd5e1));
+      walls.add(this.add.rectangle(bay.x + 60, bay.y, 4, 120, 0xcbd5e1));
     });
 
-    // Outer walls
     walls.add(this.add.rectangle(400, 5, 800, 10, 0x1e293b));
     walls.add(this.add.rectangle(400, 595, 800, 10, 0x1e293b));
     walls.add(this.add.rectangle(5, 300, 10, 600, 0x1e293b));
@@ -135,7 +131,6 @@ export default class WardScene extends Phaser.Scene {
 
   private async spawnLivePatients() {
     try {
-      console.log('📡 Fetching patients from Supabase...');
       const { data, error } = await supabase
         .from('daily_vignettes')
         .select('id')
@@ -147,17 +142,12 @@ export default class WardScene extends Phaser.Scene {
         return;
       }
 
-      if (!data || data.length === 0) {
-        console.warn('⚠️ No active patients found in Supabase table.');
-        return;
-      }
+      if (!data || data.length === 0) return;
 
-      console.log(`🏥 Found ${data.length} patients in Supabase. Spawning into bays...`);
       data.forEach((row, index) => {
         const bay = this.BAY_COORDINATES[index];
         if (bay) {
           this.spawnPatient(row.id.toString(), bay.x, bay.y);
-          this.occupiedBays.add(bay.id);
         }
       });
     } catch (e) {
@@ -166,6 +156,7 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private spawnPatient(id: string, x: number, y: number) {
+    console.log(`👤 Spawning Patient: ${id} at (${x}, ${y})`);
     const patient = this.add.rectangle(x, y, 32, 32, 0x3b82f6);
     this.physics.add.existing(patient, true);
     this.patients.set(id, patient);
@@ -173,7 +164,6 @@ export default class WardScene extends Phaser.Scene {
     patient.setInteractive();
     patient.on('pointerdown', () => {
       if (!this.player) return;
-
       const lockOwner = this.locks.get(id);
       if (lockOwner && lockOwner !== this.playerId) return;
 
@@ -200,25 +190,45 @@ export default class WardScene extends Phaser.Scene {
     p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6);
   }
 
-  public unlockPatient(id: string, isSubmitted: boolean = false) {
-    console.log(`🔓 unlockPatient called for ${id}, isSubmitted: ${isSubmitted}`);
-    if (id === this.activePatientId) {
+  /**
+   * Called when walking away OR manually closing the dossier without submission.
+   */
+  public releasePatientLock(id: string) {
+    console.log(`🔓 Releasing lock for patient ${id} (Walking away/Close)`);
+    if (this.activePatientId === id) {
       this.activePatientId = null;
     }
+    this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
+    this.sendWalkingUpdate();
+  }
 
-    // Only despawn patient upon chart submission
-    if (isSubmitted) {
-      console.log(`🧨 DESTROYING patient ${id} - Submission confirmed`);
-      console.trace();
-      const p = this.patients.get(id);
-      if (p) {
-        p.destroy();
-        this.patients.delete(id);
-      }
+  /**
+   * Called ONLY when a diagnosis is submitted.
+   */
+  public despawnPatient(id: string) {
+    console.log(`🧨 DESPAWNING patient ${id} (Diagnosis Submitted)`);
+    if (this.activePatientId === id) {
+      this.activePatientId = null;
     }
-
+    
+    // Notify others to despawn this patient
+    this.socket.send(JSON.stringify({ type: 'despawn', patientId: id }));
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
     
+    this.internalDespawn(id);
+    this.sendWalkingUpdate();
+  }
+
+  private internalDespawn(id: string) {
+    const p = this.patients.get(id);
+    if (p) {
+      console.log(`  -> Physical destruction of GameObject ${id}`);
+      p.destroy();
+      this.patients.delete(id);
+    }
+  }
+
+  private sendWalkingUpdate() {
     if (this.player) {
       this.socket.send(JSON.stringify({
         type: 'update',
@@ -234,15 +244,16 @@ export default class WardScene extends Phaser.Scene {
   update(time: number) {
     if (!this.player || !this.cursors || !this.wasd) return;
 
+    // Check distance for autounlock
     if (this.activePatientId) {
       const p = this.patients.get(this.activePatientId);
       if (p) {
         const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.x, p.y);
         if (dist > this.autoUnlockRadius) {
+          console.log(`📏 Autounlock triggered: Dist ${dist.toFixed(1)} > ${this.autoUnlockRadius}`);
           const id = this.activePatientId;
-          // Dispatch BEFORE clearing activePatientId so UI can respond
           window.dispatchEvent(new CustomEvent('phaser-patient-autounlock'));
-          this.unlockPatient(id, false); // false = don't despawn
+          this.releasePatientLock(id);
         }
       }
     }
@@ -252,21 +263,11 @@ export default class WardScene extends Phaser.Scene {
     body.setVelocity(0);
 
     let moving = false;
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
-      body.setVelocityX(-speed);
-      moving = true;
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-      body.setVelocityX(speed);
-      moving = true;
-    }
+    if (this.cursors.left.isDown || this.wasd.A.isDown) { body.setVelocityX(-speed); moving = true; }
+    else if (this.cursors.right.isDown || this.wasd.D.isDown) { body.setVelocityX(speed); moving = true; }
 
-    if (this.cursors.up.isDown || this.wasd.W.isDown) {
-      body.setVelocityY(-speed);
-      moving = true;
-    } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-      body.setVelocityY(speed);
-      moving = true;
-    }
+    if (this.cursors.up.isDown || this.wasd.W.isDown) { body.setVelocityY(-speed); moving = true; }
+    else if (this.cursors.down.isDown || this.wasd.S.isDown) { body.setVelocityY(speed); moving = true; }
 
     if (moving) {
       this.socket.send(JSON.stringify({

@@ -87,7 +87,7 @@ export default function PlayPage() {
     };
 
     const handleAutoUnlock = () => {
-      console.log('🔓 Phaser triggered autounlock');
+      console.log('🔓 Phaser triggered autounlock - resetting UI only');
       setActiveVignette(null);
       setActiveTab('feed');
     };
@@ -102,11 +102,14 @@ export default function PlayPage() {
     };
   }, [allVignettes]);
 
-  const handleClosePatient = (isSubmitted: boolean = false) => {
+  const handleClosePatient = () => {
     if (activeVignette) {
       const phaserGame = (window as any).phaserGame;
       const scene = phaserGame?.scene.getScene('WardScene') as any;
-      if (scene) scene.unlockPatient(activeVignette.id, isSubmitted);
+      if (scene) {
+        // This is a manual close (release lock, don't despawn)
+        scene.releasePatientLock(activeVignette.id);
+      }
     }
     setActiveVignette(null);
     setActiveTab('feed');
@@ -125,7 +128,14 @@ export default function PlayPage() {
     if (auth?.currentUser) {
       await saveGameStats(auth.currentUser.uid, { xp: isCorrect ? 50 : 10, score: isCorrect ? 100 : 0, correct: isCorrect });
     }
-    handleClosePatient(true); // Pass true to despawn
+
+    // This is a submission (trigger physical despawn)
+    const phaserGame = (window as any).phaserGame;
+    const scene = phaserGame?.scene.getScene('WardScene') as any;
+    if (scene) scene.despawnPatient(activeVignette.id);
+
+    setActiveVignette(null);
+    setActiveTab('feed');
   };
 
   return (
@@ -228,7 +238,7 @@ export default function PlayPage() {
                 onClick={() => setActiveTab('feed')}
                 className="flex-1 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all"
                 style={{ 
-                  backgroundColor: activeTab === 'feed' ? '#white' : '#f8fafc',
+                  backgroundColor: activeTab === 'feed' ? 'white' : '#f8fafc',
                   color: activeTab === 'feed' ? '#6366f1' : '#94a3b8'
                 }}
               >
@@ -238,7 +248,7 @@ export default function PlayPage() {
                 onClick={() => setActiveTab('patient')}
                 className="flex-1 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all border-l-4 border-[#1e293b]"
                 style={{ 
-                  backgroundColor: activeTab === 'patient' ? '#white' : '#f8fafc',
+                  backgroundColor: activeTab === 'patient' ? 'white' : '#f8fafc',
                   color: activeTab === 'patient' ? '#6366f1' : '#94a3b8'
                 }}
               >
