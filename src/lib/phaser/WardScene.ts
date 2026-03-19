@@ -71,6 +71,9 @@ export default class WardScene extends Phaser.Scene {
 
     // Socket listeners
     this.socket.onmessage = (event) => {
+      // Prevent processing if scene is destroyed or inactive
+      if (!this.sys || !this.sys.isActive()) return;
+
       const data = JSON.parse(event.data);
       if (data.type === 'sync') {
         this.locks = new Map(Object.entries(data.locks));
@@ -90,6 +93,16 @@ export default class WardScene extends Phaser.Scene {
         this.removeRemotePlayer(data.id);
       }
     };
+
+    // Cleanup on scene shutdown
+    this.events.on('shutdown', () => {
+      console.log('🔌 Closing socket for scene shutdown');
+      this.socket.close();
+    });
+
+    this.events.on('destroy', () => {
+      this.socket.close();
+    });
   }
 
   private async spawnLivePatients() {
