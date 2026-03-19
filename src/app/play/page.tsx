@@ -219,13 +219,13 @@ export default function PlayPage() {
                 onClick={() => setActiveTab('feed')}
                 className={`flex-1 py-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'feed' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <MessageSquare className="h-4 w-4" /> Comms
+                <MessageSquare size={16} /> Comms
               </button>
               <button 
                 onClick={() => setActiveTab('patient')}
                 className={`flex-1 py-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all border-l-4 border-slate-900 ${activeTab === 'patient' ? 'bg-white text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <Clipboard className="h-4 w-4" /> Dossier
+                <FileText size={16} /> Dossier
               </button>
            </div>
 
