@@ -32,6 +32,13 @@ export default class WardScene extends Phaser.Scene {
   private interactionRadius: number = 60;
   private autoUnlockRadius: number = 100;
 
+  // Ward Layout Config
+  private readonly BAY_COORDINATES = [
+    { x: 150, y: 150, id: 'bay-1' }, { x: 400, y: 150, id: 'bay-2' }, { x: 650, y: 150, id: 'bay-3' },
+    { x: 150, y: 450, id: 'bay-4' }, { x: 400, y: 450, id: 'bay-5' }, { x: 650, y: 450, id: 'bay-6' }
+  ];
+  private occupiedBays: Set<string> = new Set();
+
   constructor() {
     super('WardScene');
     const host = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
@@ -50,28 +57,20 @@ export default class WardScene extends Phaser.Scene {
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.wasd = this.input.keyboard?.addKeys('W,A,S,D') as any;
 
-    this.createIsometricGrid();
+    this.createWardEnvironment();
 
     // Create local player
     this.player = this.add.rectangle(400, 300, 32, 32, 0x00ff00);
     this.physics.add.existing(this.player);
+    if (this.player.body) {
+      (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+    }
 
     // Fetch and spawn real patients from Supabase
     this.spawnLivePatients();
 
-    // Fallback patients in case Supabase is empty/fails
-    this.time.delayedCall(3000, () => {
-      if (this.patients.size === 0) {
-        console.log('⚠️ No patients spawned from Supabase after 3s. Spawning fallbacks...');
-        for (let i = 0; i < 3; i++) {
-          this.spawnPatient(`fallback-${i}`, 150, 150 + (i * 100));
-        }
-      }
-    });
-
     // Socket listeners
     this.socket.onmessage = (event) => {
-      // Prevent processing if scene is destroyed or inactive
       if (!this.sys || !this.sys.isActive()) return;
 
       const data = JSON.parse(event.data);
@@ -94,15 +93,44 @@ export default class WardScene extends Phaser.Scene {
       }
     };
 
-    // Cleanup on scene shutdown
-    this.events.on('shutdown', () => {
-      console.log('🔌 Closing socket for scene shutdown');
-      this.socket.close();
+    this.events.on('shutdown', () => this.socket.close());
+    this.events.on('destroy', () => this.socket.close());
+  }
+
+  private createWardEnvironment() {
+    // 1. Draw Floor
+    this.add.grid(400, 300, 800, 600, 40, 40, 0xf8fafc, 1, 0xe2e8f0);
+    
+    // 2. Ward Boundaries (Walls)
+    const walls = this.physics.add.staticGroup();
+    
+    // Create patient bays
+    this.BAY_COORDINATES.forEach(bay => {
+      // Bay floor highlight
+      this.add.rectangle(bay.x, bay.y, 120, 120, 0xeef2ff).setDepth(-1).setStrokeStyle(2, 0xc7d2fe);
+      this.add.text(bay.x - 50, bay.y - 55, bay.id.toUpperCase(), { 
+        fontSize: '10px', 
+        fontFamily: 'monospace',
+        color: '#6366f1',
+        style: 'bold'
+      });
+      
+      // Bay partitions
+      const leftPartition = this.add.rectangle(bay.x - 60, bay.y, 4, 120, 0xcbd5e1);
+      const rightPartition = this.add.rectangle(bay.x + 60, bay.y, 4, 120, 0xcbd5e1);
+      walls.add(leftPartition);
+      walls.add(rightPartition);
     });
 
-    this.events.on('destroy', () => {
-      this.socket.close();
-    });
+    // Outer walls
+    walls.add(this.add.rectangle(400, 5, 800, 10, 0x1e293b));
+    walls.add(this.add.rectangle(400, 595, 800, 10, 0x1e293b));
+    walls.add(this.add.rectangle(5, 300, 10, 600, 0x1e293b));
+    walls.add(this.add.rectangle(795, 300, 10, 600, 0x1e293b));
+
+    if (this.player) {
+      this.physics.add.collider(this.player, walls);
+    }
   }
 
   private async spawnLivePatients() {
@@ -112,7 +140,7 @@ export default class WardScene extends Phaser.Scene {
         .from('daily_vignettes')
         .select('id')
         .eq('is_active', true)
-        .limit(10);
+        .limit(6);
 
       if (error) {
         console.error('❌ Supabase Fetch Error:', error);
@@ -124,22 +152,17 @@ export default class WardScene extends Phaser.Scene {
         return;
       }
 
-      console.log(`🏥 Found ${data.length} patients in Supabase. Spawning now...`);
+      console.log(`🏥 Found ${data.length} patients in Supabase. Spawning into bays...`);
       data.forEach((row, index) => {
-        const x = 200 + (index * 100);
-        const y = 200 + (Math.random() * 200);
-        console.log(`👤 Spawning patient ID: ${row.id} at (${x}, ${y})`);
-        this.spawnPatient(row.id.toString(), x, y);
+        const bay = this.BAY_COORDINATES[index];
+        if (bay) {
+          this.spawnPatient(row.id.toString(), bay.x, bay.y);
+          this.occupiedBays.add(bay.id);
+        }
       });
     } catch (e) {
       console.error('❌ Exception in spawnLivePatients:', e);
     }
-  }
-
-  private updatePatientColor(id: string) {
-    const p = this.patients.get(id);
-    if (!p) return;
-    p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6);
   }
 
   private spawnPatient(id: string, x: number, y: number) {
@@ -152,10 +175,7 @@ export default class WardScene extends Phaser.Scene {
       if (!this.player) return;
 
       const lockOwner = this.locks.get(id);
-      if (lockOwner && lockOwner !== this.playerId) {
-        console.log('🔒 Locked by another player');
-        return;
-      }
+      if (lockOwner && lockOwner !== this.playerId) return;
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
       if (dist < this.interactionRadius) {
@@ -174,9 +194,23 @@ export default class WardScene extends Phaser.Scene {
     });
   }
 
+  private updatePatientColor(id: string) {
+    const p = this.patients.get(id);
+    if (!p) return;
+    p.setFillStyle(this.locks.has(id) ? 0xef4444 : 0x3b82f6);
+  }
+
   public unlockPatient(id: string) {
+    // Despawn patient upon chart submission (if this was the trigger)
+    const p = this.patients.get(id);
+    if (p) {
+      p.destroy();
+      this.patients.delete(id);
+    }
+
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
     this.activePatientId = null;
+    
     if (this.player) {
       this.socket.send(JSON.stringify({
         type: 'update',
@@ -244,23 +278,6 @@ export default class WardScene extends Phaser.Scene {
         } 
       }));
     }
-  }
-
-  private createIsometricGrid() {
-    const graphics = this.add.graphics();
-    graphics.lineStyle(1, 0xcccccc, 0.5);
-    const gridSize = 32;
-    const rows = 20;
-    const cols = 20;
-    for (let i = 0; i <= rows; i++) {
-      graphics.moveTo(0, i * gridSize);
-      graphics.lineTo(cols * gridSize, i * gridSize);
-    }
-    for (let j = 0; j <= cols; j++) {
-      graphics.moveTo(j * gridSize, 0);
-      graphics.lineTo(j * gridSize, rows * gridSize);
-    }
-    graphics.strokePath();
   }
 
   private updateRemotePlayer(data: PlayerData) {
