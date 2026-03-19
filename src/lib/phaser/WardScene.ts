@@ -201,8 +201,15 @@ export default class WardScene extends Phaser.Scene {
   }
 
   public unlockPatient(id: string, isSubmitted: boolean = false) {
+    console.log(`🔓 unlockPatient called for ${id}, isSubmitted: ${isSubmitted}`);
+    if (id === this.activePatientId) {
+      this.activePatientId = null;
+    }
+
     // Only despawn patient upon chart submission
     if (isSubmitted) {
+      console.log(`🧨 DESTROYING patient ${id} - Submission confirmed`);
+      console.trace();
       const p = this.patients.get(id);
       if (p) {
         p.destroy();
@@ -211,7 +218,6 @@ export default class WardScene extends Phaser.Scene {
     }
 
     this.socket.send(JSON.stringify({ type: 'unlock', patientId: id }));
-    this.activePatientId = null;
     
     if (this.player) {
       this.socket.send(JSON.stringify({
