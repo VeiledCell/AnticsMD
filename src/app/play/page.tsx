@@ -4,7 +4,8 @@ import dynamicNext from 'next/dynamic';
 import { Suspense, useState, useEffect } from 'react';
 import { 
   Stethoscope, LogOut, Users, Activity, 
-  FileText, Bell, Search, LayoutDashboard, Monitor
+  FileText, Bell, Search, LayoutDashboard, Monitor,
+  Microscope, Database, ShieldCheck, HeartPulse
 } from 'lucide-react';
 import Link from 'next/link';
 import { ClinicalVignette } from '@/types';
@@ -13,7 +14,6 @@ import InterviewMenu from '@/components/InterviewMenu';
 import { saveGameStats, auth } from '@/lib/firebase';
 import { supabase } from '@/lib/supabase';
 
-// Dynamically import Phaser component as it needs 'window'
 const GameCanvas = dynamicNext(() => import('@/components/GameCanvas'), {
   ssr: false,
 });
@@ -24,7 +24,6 @@ export default function PlayPage() {
   const [wardFeed, setWardFeed] = useState<Array<{id: string, text: string, type: 'info' | 'success'}>>([]);
   const [activeTab, setActiveTab] = useState<'patient' | 'feed'>('feed');
 
-  // Fetch initial vignettes from Supabase
   useEffect(() => {
     const fetchVignettes = async () => {
       const { data, error } = await supabase
@@ -48,7 +47,6 @@ export default function PlayPage() {
     fetchVignettes();
   }, []);
 
-  // Listen for custom events from Phaser
   useEffect(() => {
     const handleInteract = (e: any) => {
       const found = allVignettes.find(v => v.id === e.detail.id);
@@ -69,14 +67,14 @@ export default function PlayPage() {
           if (dist < 400) { 
             newFeedEntries.push({
               id: `${id}-${Date.now()}`,
-              text: `Dr. ${id.substring(0, 4)} is currently rounding nearby...`,
+              text: `Dr. ${id.substring(0, 4)} rounds on Unit ${id.substring(4, 8)}`,
               type: 'info'
             });
           }
         }
       });
       if (newFeedEntries.length > 0) {
-        setWardFeed(prev => [...newFeedEntries, ...prev].slice(0, 10));
+        setWardFeed(prev => [...newFeedEntries, ...prev].slice(0, 15));
       }
     };
 
@@ -104,7 +102,7 @@ export default function PlayPage() {
     
     setWardFeed(prev => [{
       id: `sys-${Date.now()}`,
-      text: isCorrect ? `ADMISSION STATUS: Correct diagnosis confirmed for Unit #${activeVignette.id.substring(0,4)}.` : `CHART FINALIZED: Admission request submitted for Unit #${activeVignette.id.substring(0,4)}.`,
+      text: isCorrect ? `DIAGNOSIS CONFIRMED: ${activeVignette.id.substring(0,6)} initialized for transfer.` : `CHART FILED: Diagnosis pending for ${activeVignette.id.substring(0,6)}.`,
       type: isCorrect ? 'success' : 'info'
     }, ...prev]);
 
@@ -115,119 +113,155 @@ export default function PlayPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-[#05070a] text-slate-200 overflow-hidden font-sans">
       
-      {/* Station Header */}
-      <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 z-30 shadow-md">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1 rounded-lg">
-              <Stethoscope className="h-4 w-4 text-white" />
+      {/* Top Navigation Bar: High-Tech Indigo */}
+      <header className="h-16 bg-[#0a0d14] border-b border-white/5 px-8 flex items-center justify-between shrink-0 z-50">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20">
+              <Stethoscope className="h-5 w-5 text-white" />
             </div>
-            <h1 className="font-bold text-base tracking-tight text-slate-800">Antics MD <span className="text-slate-400 font-medium ml-2 text-xs uppercase tracking-widest">Infirmary Operations</span></h1>
+            <div>
+              <h1 className="font-black text-xl tracking-tight text-white italic">Antics <span className="text-indigo-500 not-italic uppercase text-sm tracking-widest ml-1">M.D.</span></h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 leading-none">Command & Control Center</p>
+            </div>
+          </div>
+
+          <div className="hidden xl:flex items-center gap-6 border-l border-white/10 pl-8">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Network Load</span>
+              <div className="h-1 w-32 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: '42%' }} className="h-full bg-indigo-500" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Unit Capacity</span>
+              <div className="h-1 w-32 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: '78%' }} className="h-full bg-emerald-500" />
+              </div>
+            </div>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-6">
-            <div className="flex items-center gap-1.5 border-r pr-4 border-slate-200">
-              <Users className="h-3.5 w-3.5" />
-              <span>Physicians: 14</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Activity className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Network Efficiency: 96%</span>
-            </div>
+          <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-md">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+            <span className="text-xs font-black text-slate-300 uppercase tracking-tighter">DR. {auth?.currentUser?.displayName?.split(' ')[0] || 'RESIDENT'}</span>
+            <div className="h-4 w-px bg-white/10 mx-1" />
+            <Link href="/" className="text-slate-500 hover:text-white transition-colors">
+              <LogOut className="h-4 w-4" />
+            </Link>
           </div>
-          <div className="h-8 w-px bg-slate-200" />
-          <Link href="/" className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-red-600 transition-colors">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Link>
         </div>
       </header>
 
-      {/* Modern Horizontal Layout Workspace */}
-      <main className="flex-1 flex overflow-hidden p-2 gap-2">
+      {/* Main Workspace Layout - Explicit Grid for Side-by-Side */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_minmax(450px,550px)] overflow-hidden">
         
-        {/* Left: Ward Monitor Window */}
-        <section className="flex-1 min-w-0 bg-slate-800 rounded-xl overflow-hidden flex flex-col border border-slate-700 shadow-2xl relative">
-          <div className="h-8 bg-slate-800 border-b border-slate-700 px-4 flex items-center justify-between shrink-0">
-             <div className="flex items-center gap-2">
-                <Monitor className="h-3 w-3 text-emerald-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Live Ward Monitor • Node_04</span>
-             </div>
-             <div className="flex gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                <div className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-             </div>
-          </div>
+        {/* LEFT: REAL-TIME WARD MONITOR */}
+        <section className="relative flex flex-col bg-[#05070a] overflow-hidden p-3 gap-3">
           
-          <div className="flex-1 bg-black relative">
-            <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-500 text-xs font-bold uppercase tracking-widest animate-pulse">Establishing Aether-Link...</div>}>
-              <GameCanvas />
-            </Suspense>
+          {/* Monitor Header */}
+          <div className="h-10 bg-[#0a0d14] rounded-t-2xl border-x border-t border-white/5 px-5 flex items-center justify-between shadow-lg">
+             <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1] animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Live Visual Feed • Ward_Delta_04</span>
+             </div>
+             <div className="flex items-center gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+                <span className="flex items-center gap-1"><Monitor className="h-3 w-3" /> 1080p_Stream</span>
+                <span className="flex items-center gap-1"><Database className="h-3 w-3" /> Sync_Active</span>
+             </div>
           </div>
 
-          <div className="h-8 bg-slate-800 border-t border-slate-700 px-4 flex items-center justify-between text-[9px] font-bold text-slate-500 uppercase tracking-tight">
-             <div className="flex gap-4">
-                <span>[W][A][S][D] Navigate</span>
-                <span>[Mouse] Interact</span>
+          {/* Game Canvas Container */}
+          <div className="flex-1 bg-black rounded-b-2xl border-x border-b border-white/5 relative overflow-hidden shadow-2xl group">
+            {/* Corner Decorative Elements */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-indigo-500/30 rounded-tl-xl pointer-events-none" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-indigo-500/30 rounded-tr-xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-indigo-500/30 rounded-bl-xl pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-indigo-500/30 rounded-br-xl pointer-events-none" />
+            
+            <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-600 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse italic">Establishing Neural Link...</div>}>
+              <GameCanvas />
+            </Suspense>
+
+            {/* Overlay Grid lines (Very subtle) */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
+          </div>
+
+          {/* Monitor Footer Info */}
+          <div className="flex items-center justify-between px-4 text-[9px] font-black uppercase tracking-widest text-slate-600">
+             <div className="flex gap-6">
+                <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-indigo-500" /> Interaction Range: 60u</span>
+                <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /> Active Rounding</span>
              </div>
-             <span>System Status: Optimal</span>
+             <div className="bg-white/5 px-3 py-1 rounded-full border border-white/5 flex items-center gap-2">
+                <span className="opacity-50 italic">Controls:</span>
+                <span className="text-slate-400 font-mono">[W][A][S][D] / Arrows</span>
+             </div>
           </div>
         </section>
 
-        {/* Right: Electronic Health Record (EHR) Terminal */}
-        <section className="w-[500px] lg:w-[600px] bg-slate-100 rounded-xl flex flex-col shrink-0 overflow-hidden border border-slate-200 shadow-2xl">
+        {/* RIGHT: CLINICAL INFORMATION TERMINAL */}
+        <section className="flex flex-col bg-[#0a0d14] border-l border-white/5 overflow-hidden shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
           
-          {/* EHR Tabs */}
-          <div className="flex bg-slate-200/50 p-1 gap-1 shrink-0">
+          {/* Terminal Tabs: Clean Modern Interface */}
+          <div className="flex bg-[#05070a] p-2 gap-2 shrink-0 border-b border-white/5">
             <button 
               onClick={() => setActiveTab('feed')}
-              className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'feed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+              className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'feed' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
             >
               <Bell className="h-3.5 w-3.5" />
               Unit Comms
             </button>
             <button 
               onClick={() => setActiveTab('patient')}
-              className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'patient' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+              className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${activeTab === 'patient' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
             >
               <FileText className="h-3.5 w-3.5" />
-              Clinical Dossier
+              Electronic Dossier
             </button>
           </div>
 
-          {/* CIS Display Area */}
-          <div className="flex-1 overflow-hidden relative flex flex-col bg-white rounded-b-xl border-t border-slate-200">
+          {/* Terminal Display Area: High Contrast Content */}
+          <div className="flex-1 overflow-hidden relative flex flex-col bg-[#05070a]">
             <AnimatePresence mode="wait">
               {activeTab === 'feed' ? (
                 <motion.div 
                   key="feed"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex-1 flex flex-col overflow-hidden"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="flex-1 flex flex-col overflow-hidden p-6 gap-6"
                 >
-                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Station Communication Log</h2>
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-2">
+                      <Microscope className="h-4 w-4 text-indigo-500" />
+                      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-300">Operations Feed</h2>
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded uppercase tracking-tighter">Live_Encrypted</span>
                   </div>
                   
-                  <div className="flex-1 space-y-3 overflow-y-auto p-6 custom-scrollbar">
+                  <div className="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                     {wardFeed.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 py-20">
-                        <Activity className="h-12 w-12 mb-4" />
-                        <p className="text-xs font-bold uppercase tracking-widest">No Incoming Logs</p>
+                      <div className="h-full flex flex-col items-center justify-center text-slate-700 italic py-20 opacity-30">
+                        <HeartPulse className="h-16 w-16 mb-4" />
+                        <p className="text-xs font-black uppercase tracking-[0.3em]">No Comms Logged</p>
                       </div>
                     ) : (
                       wardFeed.map((item) => (
-                        <div key={item.id} className="bg-white border border-slate-100 p-4 rounded-xl shadow-sm border-l-4 border-l-blue-600">
-                          <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-                            <span className="text-blue-600 font-black mr-2">LOG_{new Date().getMinutes()}:</span>
-                            {item.text}
-                          </p>
+                        <div key={item.id} className="bg-[#0a0d14] border border-white/5 p-4 rounded-2xl flex gap-4 items-start shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-all">
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.type === 'success' ? 'bg-emerald-500' : 'bg-indigo-500'}`} />
+                          <div className="flex-1">
+                             <div className="flex justify-between items-center mb-1">
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${item.type === 'success' ? 'text-emerald-500' : 'text-indigo-500'}`}>{item.type === 'success' ? 'Resolution' : 'Update'}</span>
+                                <span className="text-[8px] font-mono text-slate-600">{new Date().toLocaleTimeString()}</span>
+                             </div>
+                             <p className="text-[13px] font-bold text-slate-300 leading-snug">
+                                {item.text}
+                             </p>
+                          </div>
                         </div>
                       ))
                     )}
@@ -236,10 +270,10 @@ export default function PlayPage() {
               ) : (
                 <motion.div 
                   key="patient"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex-1 flex flex-col overflow-hidden"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="flex-1 flex flex-col overflow-hidden bg-white"
                 >
                   {activeVignette ? (
                     <InterviewMenu 
@@ -249,19 +283,37 @@ export default function PlayPage() {
                       isEmbedded={true}
                     />
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-slate-50/30">
-                      <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center mb-6 border-2 border-slate-100 shadow-sm">
-                        <Search className="h-6 w-6 text-slate-200" />
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-[#05070a]">
+                      <div className="h-24 w-24 bg-[#0a0d14] rounded-3xl flex items-center justify-center mb-8 border border-white/5 shadow-2xl relative">
+                        <div className="absolute inset-0 bg-indigo-500/5 blur-xl rounded-full" />
+                        <Search className="h-8 w-8 text-slate-700 relative z-10" />
                       </div>
-                      <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest mb-2">No Active Patient</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed max-w-[240px]">
-                        Please engage a patient on the Monitor to load their clinical file into the terminal.
+                      <h3 className="text-sm font-black uppercase text-slate-500 tracking-[0.3em] mb-3 italic">Record Selection Required</h3>
+                      <p className="text-xs text-slate-600 leading-relaxed max-w-[280px] font-medium tracking-tight">
+                        Navigate to a patient unit on the monitor to securely retrieve their clinical profile from the central database.
                       </p>
                     </div>
                   )}
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+
+          {/* Terminal Status Bar */}
+          <div className="h-10 bg-[#0a0d14] border-t border-white/5 flex items-center justify-between px-8 shrink-0">
+             <div className="flex items-center gap-6">
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2 italic">
+                   <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 shadow-[0_0_5px_#6366f1]" /> 
+                   Terminal_A32.Secure
+                </span>
+                <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest border-l border-white/5 pl-6">
+                   Vignette_ID: {activeVignette?.id?.substring(0,8) || 'N/A'}
+                </span>
+             </div>
+             <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Hi-Def Interface v2.5</span>
+             </div>
           </div>
         </section>
       </main>
@@ -271,11 +323,14 @@ export default function PlayPage() {
           width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
+          background: rgba(0,0,0,0.1);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
+          background: #312e81;
           border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #4338ca;
         }
       `}</style>
     </div>

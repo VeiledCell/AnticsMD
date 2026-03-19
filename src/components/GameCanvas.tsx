@@ -14,9 +14,10 @@ export default function GameCanvas() {
       type: Phaser.AUTO,
       parent: gameRef.current,
       scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: '100%',
-        height: '100%',
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 800,
+        height: 600,
       },
       physics: {
         default: 'arcade',
@@ -38,8 +39,8 @@ export default function GameCanvas() {
   }, []);
 
   return (
-    <div className="w-full h-full bg-black overflow-hidden relative">
-      <div ref={gameRef} className="w-full h-full" />
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+      <div ref={gameRef} />
     </div>
   );
 }
