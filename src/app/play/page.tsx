@@ -11,8 +11,9 @@ import Link from 'next/link';
 import { ClinicalVignette } from '@/types';
 import { AnimatePresence, motion } from 'framer-motion';
 import InterviewMenu from '@/components/InterviewMenu';
-import { saveGameStats, auth } from '@/lib/firebase';
+import { saveGameStats, auth, markQuestionAsCompleted, db } from '@/lib/firebase';
 import { supabase } from '@/lib/supabase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const GameCanvas = dynamicNext(() => import('@/components/GameCanvas'), {
   ssr: false,
@@ -33,14 +34,29 @@ export default function PlayPage() {
 
   useEffect(() => {
     const fetchVignettes = async () => {
+      let completedIds: string[] = [];
+      
+      // Try to get completed IDs from Firestore if user is logged in
+      if (auth?.currentUser && db) {
+        try {
+          const statsRef = doc(db, "game_stats", auth.currentUser.uid);
+          const docSnap = await getDoc(statsRef);
+          if (docSnap.exists()) {
+            completedIds = docSnap.data().completedQuestions || [];
+          }
+        } catch (e) {
+          console.warn("Failed to fetch completed questions:", e);
+        }
+      }
+
       const { data, error } = await supabase
         .from('daily_vignettes')
         .select('*')
         .eq('is_active', true)
-        .limit(10);
+        .limit(20); // Fetch a few more to allow for filtering
       
       if (data) {
-        const vignettes = data.map((row: any) => ({
+        let vignettes = data.map((row: any) => ({
           ...row.data,
           id: row.id.toString(),
           fullVignette: row.data.full_vignette || row.data.fullVignette,
@@ -48,11 +64,17 @@ export default function PlayPage() {
           physicalExam: row.data.physical_exam || row.data.physicalExam,
           correctDiagnosis: row.data.correct_diagnosis || row.data.correctDiagnosis
         }));
-        setAllVignettes(vignettes);
+
+        // Filter out completed ones
+        if (completedIds.length > 0) {
+          vignettes = vignettes.filter((v: ClinicalVignette) => !completedIds.includes(v.id));
+        }
+
+        setAllVignettes(vignettes.slice(0, 10));
       }
     };
     fetchVignettes();
-  }, []);
+  }, [auth?.currentUser]);
 
   useEffect(() => {
     const handleInteract = (e: any) => {
@@ -127,6 +149,9 @@ export default function PlayPage() {
 
     if (auth?.currentUser) {
       await saveGameStats(auth.currentUser.uid, { xp: isCorrect ? 50 : 10, score: isCorrect ? 100 : 0, correct: isCorrect });
+      if (isCorrect) {
+        await markQuestionAsCompleted(auth.currentUser.uid, activeVignette.id);
+      }
     }
 
     // This is a submission (trigger physical despawn)
@@ -224,7 +249,7 @@ export default function PlayPage() {
               <div className="absolute inset-0 bg-slate-50 opacity-30 pointer-events-none" />
               <div className="w-full h-full relative z-10">
                 <Suspense fallback={null}>
-                  <GameCanvas />
+                  <GameCanvas uid={auth?.currentUser?.uid} />
                 </Suspense>
               </div>
            </div>

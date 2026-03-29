@@ -4,7 +4,11 @@ import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
 import WardScene from '@/lib/phaser/WardScene';
 
-export default function GameCanvas() {
+interface GameCanvasProps {
+  uid?: string;
+}
+
+export default function GameCanvas({ uid }: GameCanvasProps) {
   const gameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,13 +34,16 @@ export default function GameCanvas() {
     };
 
     const game = new Phaser.Game(config);
+    if (uid) {
+      game.registry.set('uid', uid);
+    }
     (window as any).phaserGame = game;
 
     return () => {
       delete (window as any).phaserGame;
       game.destroy(true);
     };
-  }, []);
+  }, [uid]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">

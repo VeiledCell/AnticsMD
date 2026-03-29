@@ -47,34 +47,61 @@ export default function InterviewMenu({ vignette, onClose, onSubmit, isEmbedded 
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar">
-        {/* Presentation: High Legibility */}
+        {/* The Stem: Classical Medical Board Appearance */}
         <section>
-          <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-3 italic">Clinical Presentation</h4>
-          <div className="bg-slate-50 border-2 border-slate-900 p-5 rounded-2xl shadow-[4px_4px_0_0_#1e293b]">
-             <p className="text-slate-700 text-sm font-bold leading-relaxed italic">
-                "{vignette.fullVignette || vignette.hpi.join(' ')}"
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 italic">Clinical Presentation</h4>
+            <span className="text-[9px] font-bold text-slate-300 uppercase">USMLE Step 1 Standard</span>
+          </div>
+          <div className="bg-white border-2 border-slate-900 p-6 rounded-2xl shadow-[6px_6px_0_0_#1e293b] relative">
+             <div className="absolute -top-3 -left-3 bg-slate-900 text-white text-[8px] font-black px-2 py-1 rounded-md uppercase tracking-tighter">
+                Official Case History
+             </div>
+             <p className="text-slate-800 text-sm font-medium leading-relaxed font-serif">
+                {vignette.fullVignette}
              </p>
           </div>
         </section>
 
-        {/* Vitals: Grid */}
-        <section>
-          <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-3 italic">Vital Signs</h4>
-          <div className="grid grid-cols-2 gap-3">
-            <VitalCard label="Temp" value={`${vignette.vitals.temp}°F`} />
-            <VitalCard label="HR" value={`${vignette.vitals.hr} bpm`} />
-            <VitalCard label="BP" value={vignette.vitals.bp} />
-            <VitalCard label="SpO2" value={`${vignette.vitals.spo2}%`} />
-          </div>
-        </section>
+        {/* Vital Signs: Only shown if LLM extracted them */}
+        {vignette.vitals && Object.values(vignette.vitals).some(v => v !== null) && (
+          <section>
+            <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-3 italic">Clinical Indicators</h4>
+            <div className="grid grid-cols-4 gap-2">
+              {vignette.vitals.temp && <VitalCard label="Temp" value={`${vignette.vitals.temp}°F`} />}
+              {vignette.vitals.hr && <VitalCard label="HR" value={`${vignette.vitals.hr}`} />}
+              {vignette.vitals.bp && <VitalCard label="BP" value={vignette.vitals.bp} />}
+              {vignette.vitals.spo2 && <VitalCard label="SpO2" value={`${vignette.vitals.spo2}%`} />}
+            </div>
+          </section>
+        )}
 
-        {/* Physical Exam */}
-        <section>
-          <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-3 italic">Examination Findings</h4>
-          <div className="bg-white border-2 border-slate-900 p-5 rounded-2xl text-sm font-bold text-slate-600 leading-relaxed">
-            {vignette.physicalExam}
-          </div>
-        </section>
+        {/* Physical Exam: Only if provided separately */}
+        {vignette.physicalExam && vignette.physicalExam !== "null" && (
+          <section>
+            <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-3 italic">Focused Findings</h4>
+            <div className="bg-slate-50 border-2 border-slate-900 p-5 rounded-2xl text-xs font-bold text-slate-600 leading-relaxed italic">
+              {vignette.physicalExam}
+            </div>
+          </section>
+        )}
+
+        {/* RPG Dialogue / HPI: The 'Patient Voice' */}
+        {vignette.hpi && vignette.hpi.length > 0 && (
+          <section>
+             <h4 className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-3 italic">Interview Responses</h4>
+             <div className="space-y-2">
+                {vignette.hpi.map((bit, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="h-5 w-5 rounded-full bg-indigo-50 border border-indigo-200 flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-indigo-400">
+                      {i + 1}
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 italic leading-snug">"{bit}"</p>
+                  </div>
+                ))}
+             </div>
+          </section>
+        )}
 
         {/* Selection */}
         <section className="pt-6 border-t-4 border-slate-900 pb-10">

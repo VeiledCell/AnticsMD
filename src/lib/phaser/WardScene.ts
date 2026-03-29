@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import PartySocket from 'partysocket';
 import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface PlayerData {
   id: string;
@@ -149,11 +151,26 @@ export default class WardScene extends Phaser.Scene {
   private async spawnLivePatients() {
     try {
       console.log('📡 spawnLivePatients: Fetching from Supabase...');
+      
+      const uid = this.registry.get('uid');
+      let completedIds: string[] = [];
+      if (uid && db) {
+        try {
+          const statsRef = doc(db, "game_stats", uid);
+          const docSnap = await getDoc(statsRef);
+          if (docSnap.exists()) {
+            completedIds = docSnap.data().completedQuestions || [];
+          }
+        } catch (e) {
+          console.warn("Phaser: Failed to fetch completed questions:", e);
+        }
+      }
+
       const { data, error } = await supabase
         .from('daily_vignettes')
         .select('id')
         .eq('is_active', true)
-        .limit(6);
+        .limit(20); // Fetch more to allow for filtering
 
       if (error) {
         console.error('❌ Supabase Fetch Error:', error);
@@ -167,7 +184,10 @@ export default class WardScene extends Phaser.Scene {
         return;
       }
 
-      data.forEach((row, index) => {
+      // Filter out completed ones
+      const filteredData = data.filter(row => !completedIds.includes(row.id.toString()));
+
+      filteredData.slice(0, 6).forEach((row, index) => {
         const bay = this.BAY_COORDINATES[index];
         if (bay) {
           this.spawnPatient(row.id.toString(), bay.x, bay.y);

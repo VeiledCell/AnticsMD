@@ -1,70 +1,64 @@
-# ANTICS MD: MASTER SYSTEM ARCHITECTURE (v2)
+# ANTICS MD: MASTER SYSTEM ARCHITECTURE (v2.2)
 
 ## 1. Project Context & Identity
 * **Product Name:** Antic MD
 * **Domain:** `anticsmd.hsieh.org`
 * **Niche:** Competitive Multiplayer Hospital Operations & Clinical Reasoning Simulator.
-* **Shared Auth:** Uses Firebase Project `qrpass-4f170` (`hjxuguoxunslszpbdweh`).
-* **SSO Strategy:** Cross-subdomain session detection via `browserLocalPersistence` (shared with `card.hsieh.org`).
+* **Shared Auth:** Uses Firebase Project `qrpass-4f170`.
+* **SSO Strategy:** Cross-subdomain session detection via `browserLocalPersistence`.
 
 ---
 
 ## 2. Detailed Architecture & Data Flow
 
 ### A. Client Layer (Frontend)
-*   **Framework:** Next.js (App Router) with `force-dynamic` rendering on `/play`.
-*   **UI/UX:**
-    *   **Styling:** Tailwind CSS.
-    *   **Animation:** Framer Motion for UI popups (`InterviewMenu`).
-*   **Game Engine:** Phaser.js, rendered inside a React `GameCanvas` component.
-    *   **Scene:** `WardScene.ts` manages all game logic, including player movement (WASD/Arrow Keys), patient spawning, and proximity calculations.
-    *   **Communication:** Phaser communicates with React via global `window.dispatchEvent` for events like `phaser-patient-interact` and `phaser-remote-update`.
-*   **Real-time Networking:** `partysocket` client connects to the PartyKit server.
+*   **Framework:** Next.js (App Router) with `force-dynamic` rendering.
+*   **UI/UX (The Clinical Workstation):**
+    *   **3-Column Bulletproof Grid:** Strictly enforced horizontal layout (`240px | 1fr | 380px`).
+    *   **Styling:** Tailwind CSS v4 with `@tailwindcss/postcss`.
+    *   **Theme:** "Chunky Clinical" aesthetic with thick borders, rounded corners, and professional medical terminology.
+*   **Game Engine:** Phaser.js (v3.90.0) inside `GameCanvas.tsx`.
+    *   **Scaling:** Uses `Phaser.Scale.FIT` to remain constrained within the grid.
+    *   **Lifecycle Safety:** Checks `this.sys.isActive()` to prevent "ghost scenes" from processing socket data after unmount.
 
-### B. Application Layer (Real-time & AI)
-
-#### B1. Real-time Engine (PartyKit)
-*   **Location:** `party/server.ts`, deployed to PartyKit Cloud.
-*   **Responsibilities:**
-    *   **Player Sync:** Receives `(x, y)` coordinates from clients and broadcasts them to all other players in the room (`hospital-ward`).
-    *   **Competitive Mechanics:**
-        *   **Curbside Steal:** Manages a `locks` object (`patientId -> playerId`) to enforce that only one player can interact with a patient at a time.
-        *   **One Lock Rule:** Automatically releases a player's old lock if they try to lock a new patient.
-    *   **Status Sync:** Broadcasts player `status` (e.g., 'walking', 'interviewing') for eavesdropping.
-
-#### B2. AI Service (Python FastAPI)
-*   **Location:** `/ai-service`, designed to run as a separate server.
-*   **Core RAG Pipeline:**
-    1.  **Ground Truth (Neo4j):** The `/generate/one` endpoint queries a local **Dockerized Neo4j** instance for a disease's pathognomonic symptoms and metadata (e.g., `specialty`).
-    2.  **Style & Tone (ChromaDB):** It then queries a local **Dockerized ChromaDB** for a similar USMLE-style vignette from the **MedQA** dataset.
-    3.  **Synthesis (Gemini):** Both the facts and the style template are passed to the **`gemini-2.5-flash`** model, which generates a high-quality, structured JSON vignette.
-*   **Knowledge Ingestion (Scripts):**
-    *   `extract_medqa_knowledge.py`: An AI-powered script that reads the MedQA dataset, uses Gemini to extract structured `Disease`, `Specialty`, and `Key_Finding` entities, and seeds them into Neo4j.
-    *   `seed_chroma.py`: Seeds ChromaDB with raw vignettes for similarity search.
-    *   `batch_pipeline.py`: Orchestrates the end-to-end generation for all diseases in Neo4j and pushes the results to the Supabase cache.
-
-### C. Storage & Retrieval (The RAG Pipeline)
-
-*   **Knowledge Layer (Offline):**
-    *   **Neo4j AuraDB (or local Docker):** Stores the structured **Medical Knowledge Graph** (`:Disease` -> `:Symptom`) extracted from MedQA.
-    *   **ChromaDB (or local Docker):** Stores vector embeddings of **MedQA vignette templates** for tone/style matching.
-*   **Cache Database (Live Game):**
-    *   **Supabase (PostgreSQL):** Hosts the `daily_vignettes` table. This table is populated by the `batch_pipeline.py` script.
-    *   **Frontend Access:** The Next.js app reads directly from this table (`is_active = true`) to fetch the vignettes for the current game session, ensuring low latency.
-*   **Player Stats & Auth:**
-    *   **Firebase Authentication:** Handles user sign-in.
-    *   **Firestore:** The `game_stats` collection stores player XP, Score, and other metrics, updated via the `saveGameStats` helper function.
+### B. Real-time & AI Layers
+*   **Networking:** PartyKit (`party/server.ts`) for real-time player sync and patient locking.
+*   **AI Service:** Python FastAPI service generating MedQA-style vignettes using Gemini 2.5 Flash and Neo4j/ChromaDB RAG.
 
 ---
 
-## 3. Core Gameplay Loop & Mechanics
-1.  **Spawn:** The `WardScene` in Phaser fetches active vignette IDs from **Supabase** and spawns interactive patient objects on the ward floor.
-2.  **Interact:** A player moves near a patient and clicks, triggering the `phaser-patient-interact` event.
-3.  **Lock & Load:** The client requests a `lock` from the **PartyKit** server. The server verifies the lock, broadcasts the change (turning the patient red for others), and sends the vignette data from Supabase to the player's UI.
-4.  **Hybrid Interview:**
-    *   **Static Options:** The `InterviewMenu` displays the HPI, vitals, and exam findings from the Supabase vignette.
-    *   **Custom Text (Future):** The "Deep Inquiry" box will send custom text to the **AI Service** for real-time answers.
-5.  **Eavesdrop:** Other players' clients receive the `status: 'interviewing'` broadcast from PartyKit. If they are within the `400` unit radius, their "Ward Feed" UI updates.
-6.  **The Sprint:**
-    *   **Auto-Unlock:** If the active player walks away from the patient, the lock is automatically released.
-    *   **Submit & Score:** The player selects a diagnosis and submits. The client checks the `correctDiagnosis` from the vignette, updates the score in **Firestore**, and unlocks the patient.
+## 3. Key Architectural Insights & Fixes
+
+### 3.1 UI Stability (Skribbl-style Framework)
+*   **The Problem:** Standard CSS layouts often wrap on small screens or when the Phaser canvas grows, causing sidebars to stack vertically.
+*   **The Fix:** Used a combination of `min-width: 1200px` on the main container and a fixed-column CSS Grid. Switched to Tailwind v4 `@import` syntax and added a `postcss.config.cjs` to ensure the styles are correctly compiled in Vercel's build environment.
+
+### 3.2 Phaser Scene Persistence
+*   **The Problem:** React's StrictMode or navigation re-renders would create new Phaser instances while the old socket listeners were still active, leading to "null pointer" errors when trying to update destroyed objects.
+*   **The Fix:** Every socket handler now verifies `if (!this.sys || !this.sys.isActive()) return;`. Additionally, explicit `shutdown` and `destroy` listeners close the socket connection.
+
+### 3.3 Clinical Data Mapping
+*   **The Problem:** Python backend uses `snake_case`, while the frontend uses `camelCase`, and some vignettes were missing the dense MedQA paragraph.
+*   **The Fix:** Implemented a mapping layer in `PlayPage.tsx` that standardizes incoming Supabase rows. Added `fullVignette` support to all models to prioritize the USMLE-style stem over dialogue bits.
+
+### 3.4 Patient Lifecycle & Global Sync
+*   **The Problem:** Patients would sometimes despawn when a player walked away, or wouldn't disappear for other players when cured.
+*   **The Fix:** 
+    *   **Decoupled Logic:** "Walk-away" now only releases the server lock (`unlock`), while "Submit" triggers a physical `despawn`.
+    *   **Global Despawn:** Implemented a `despawn` broadcast in PartyKit. When one player submits a diagnosis, the patient is removed from *all* active clients' Phaser scenes simultaneously.
+    *   **React-Phaser Sync:** Added `phaser-patient-autounlock` event to ensure the React "Dossier" UI closes automatically when Phaser triggers a distance-based unlock.
+
+### 3.5 Question Persistence & Completion Tracking
+*   **The Problem:** Players would encounter the same clinical vignettes repeatedly across sessions, leading to a redundant experience.
+*   **The Fix:** 
+    *   **Firestore Integration:** Implemented `completedQuestions` array within the user's `game_stats` document in Firestore.
+    *   **Dual-Layer Filtering:** Both the React frontend (Dossier list) and the Phaser game engine (Ward spawn logic) now filter out Supabase vignettes that match the user's completed IDs.
+    *   **Successful Resolution Trigger:** Only successful diagnoses trigger the `markQuestionAsCompleted` logic, ensuring patients are only cleared once "solved."
+
+---
+
+## 4. Current Objectives (Roadmap)
+1.  **Dynamic Respawning:** Implement logic to automatically fetch and spawn a *new* patient into a bay once it has been emptied by a successful (or failed) submission.
+2.  **Enhanced Unit Comms:** Expand the "Ward Feed" to include rich notifications (e.g., "Dr. Hsieh correctly diagnosed Myocardial Infarction in Bay 4").
+3.  **Physical Boundaries:** Refine the Phaser ward collision map to prevent players from walking through medical equipment or walls.
+4.  **Persistent Leaderboard:** Connect the Firestore scoring data to a global leaderboard accessible from the header.

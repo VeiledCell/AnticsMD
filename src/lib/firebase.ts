@@ -50,6 +50,7 @@ export const saveGameStats = async (uid: string, stats: { xp: number, score: num
         misdiagnoses: stats.correct ? 0 : 1,
         efficiencyRating: 100
       },
+      completedQuestions: [],
       lastActive: new Date().toISOString()
     });
   } else {
@@ -59,6 +60,39 @@ export const saveGameStats = async (uid: string, stats: { xp: number, score: num
       "wardMetrics.patientsSeen": increment(1),
       "wardMetrics.correctDiagnoses": increment(stats.correct ? 1 : 0),
       "wardMetrics.misdiagnoses": increment(stats.correct ? 0 : 1),
+      lastActive: new Date().toISOString()
+    });
+  }
+};
+
+export const markQuestionAsCompleted = async (uid: string, questionId: string) => {
+  if (!db || !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) return;
+  
+  const statsRef = doc(db, "game_stats", uid);
+  const docSnap = await getDoc(statsRef);
+
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    const completed = data.completedQuestions || [];
+    if (!completed.includes(questionId)) {
+      await updateDoc(statsRef, {
+        completedQuestions: [...completed, questionId]
+      });
+    }
+  } else {
+    // Create doc if it doesn't exist (though usually saveGameStats handles this)
+    await setDoc(statsRef, {
+      uid,
+      xp: 0,
+      score: 0,
+      level: 1,
+      wardMetrics: {
+        patientsSeen: 0,
+        correctDiagnoses: 0,
+        misdiagnoses: 0,
+        efficiencyRating: 100
+      },
+      completedQuestions: [questionId],
       lastActive: new Date().toISOString()
     });
   }
