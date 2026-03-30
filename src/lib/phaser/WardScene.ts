@@ -15,7 +15,7 @@ interface PlayerData {
 
 export default class WardScene extends Phaser.Scene {
   private socket: PartySocket;
-  private players: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private players: Map<string, Phaser.GameObjects.GameObject> = new Map();
   private remotePlayerData: Map<string, PlayerData> = new Map();
   private lastUpdateSent: number = 0;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -25,8 +25,8 @@ export default class WardScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
-  private player?: Phaser.GameObjects.Rectangle;
-  private patients: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private player?: Phaser.GameObjects.Sprite;
+  private patients: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private locks: Map<string, string> = new Map(); // patientId -> playerId
   private playerId: string = Math.random().toString(36).substring(7);
   
