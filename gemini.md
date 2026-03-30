@@ -25,6 +25,15 @@
 *   **Networking:** PartyKit (`party/server.ts`) for real-time player sync and patient locking.
 *   **AI Service:** Python FastAPI service generating MedQA-style vignettes using Gemini 2.5 Flash and Neo4j/ChromaDB RAG.
 
+### C. The Clinical RAG Pipeline
+*   **Ingestion:** Raw MedQA data from HuggingFace (`medalpaca/medical_meadow_medqa`) is split into a **Fact Brain** (Neo4j) and a **Style Brain** (ChromaDB).
+*   **Distillation:** 50+ granular specialties are mapped to **9 Master Categories** (Internal Medicine, Surgery, Pediatrics, OB/GYN, Neurology, Psychiatry, Emergency Medicine, Basic Sciences, Population Health) for cleaner UI categorization.
+*   **Synthesis:**
+    1.  **Facts:** Neo4j provides pathognomonic symptoms and SNOMED codes.
+    2.  **Style:** ChromaDB provides a real USMLE question stem as a "Source of Truth."
+    3.  **Extraction:** Gemini 2.5 Flash extracts findings from the stem into structured JSON, ensuring zero hallucination of vitals/exams.
+*   **Caching:** Final vignettes are pushed to **Supabase** to ensure low-latency access for multiplayer sessions.
+
 ---
 
 ## 3. Key Architectural Insights & Fixes
@@ -55,10 +64,18 @@
     *   **Dual-Layer Filtering:** Both the React frontend (Dossier list) and the Phaser game engine (Ward spawn logic) now filter out Supabase vignettes that match the user's completed IDs.
     *   **Successful Resolution Trigger:** Only successful diagnoses trigger the `markQuestionAsCompleted` logic, ensuring patients are only cleared once "solved."
 
+### 3.6 Clinical Presentation Authenticity
+*   **The Problem:** The synthesized vignettes often split critical context into separate UI fields, and LLMs would sometimes "hallucinate" vitals or exam data that wasn't in the original USMLE stem.
+*   **The Fix:** 
+    *   **Source of Truth:** Redesigned the `VignetteGenerator` prompt to treat the original USMLE stem as the absolute source of truth, instructing the model to extract findings rather than generate them.
+    *   **Board-Style UI:** Updated `InterviewMenu` to feature an "Official Case History" section that displays the full clinical stem.
+    *   **Conditional Rendering:** Vitals and Exam sections now only appear if data was explicitly extracted from the original question, matching the variable data density of real board exams.
+
 ---
 
 ## 4. Current Objectives (Roadmap)
 1.  **Dynamic Respawning:** Implement logic to automatically fetch and spawn a *new* patient into a bay once it has been emptied by a successful (or failed) submission.
-2.  **Enhanced Unit Comms:** Expand the "Ward Feed" to include rich notifications (e.g., "Dr. Hsieh correctly diagnosed Myocardial Infarction in Bay 4").
-3.  **Physical Boundaries:** Refine the Phaser ward collision map to prevent players from walking through medical equipment or walls.
-4.  **Persistent Leaderboard:** Connect the Firestore scoring data to a global leaderboard accessible from the header.
+2.  **Laboratory & Imaging Viewer:** Create a dedicated tab in the Dossier for viewing rich lab results and diagnostic imaging findings extracted from the vignette.
+3.  **Enhanced Unit Comms:** Expand the "Ward Feed" to include rich notifications (e.g., "Dr. Hsieh correctly diagnosed Myocardial Infarction in Bay 4").
+4.  **Physical Boundaries:** Refine the Phaser ward collision map to prevent players from walking through medical equipment or walls.
+5.  **Persistent Leaderboard:** Connect the Firestore scoring data to a global leaderboard accessible from the header.

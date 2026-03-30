@@ -51,7 +51,10 @@ export default class WardScene extends Phaser.Scene {
   }
 
   preload() {
-    // No assets
+    this.load.image('doctor', '/assets/doctor.png');
+    this.load.image('patient', '/assets/patient.png');
+    this.load.image('icon_internal', '/assets/icon_internal.png');
+    this.load.image('icon_neurology', '/assets/icon_neurology.png');
   }
 
   create() {
@@ -62,7 +65,8 @@ export default class WardScene extends Phaser.Scene {
     this.createWardEnvironment();
 
     // Create local player
-    this.player = this.add.rectangle(400, 300, 32, 32, 0x00ff00);
+    this.player = this.add.sprite(400, 300, 'doctor') as any;
+    this.player.setScale(0.25); // Scale 128px down to 32px
     this.player.setDepth(20);
     this.physics.add.existing(this.player);
     if (this.player.body) {
@@ -210,11 +214,12 @@ export default class WardScene extends Phaser.Scene {
   private spawnPatient(id: string, x: number, y: number) {
     if (this.patients.has(id)) return;
 
-    console.log(`👤 spawnPatient: Creating GameObject for ${id} at (${x}, ${y})`);
-    const patient = this.add.rectangle(x, y, 32, 32, 0x3b82f6);
+    console.log(`👤 spawnPatient: Creating Sprite for ${id} at (${x}, ${y})`);
+    const patient = this.add.sprite(x, y, 'patient');
+    patient.setScale(0.25);
     patient.setDepth(10);
     this.physics.add.existing(patient, true);
-    this.patients.set(id, patient);
+    this.patients.set(id, patient as any);
 
     patient.setInteractive();
     patient.on('pointerdown', () => {
@@ -246,16 +251,17 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private updatePatientColor(id: string) {
-    const p = this.patients.get(id);
+    const p = this.patients.get(id) as any;
     if (!p) return;
     const isLocked = this.locks.has(id);
     const isByMe = this.locks.get(id) === this.playerId;
     
-    // Red if locked by someone else, Blue if free, Green if being seen by me
+    // Reset tint first
+    p.clearTint();
+
+    // Red if locked by someone else, Green if being seen by me, No tint if free
     if (isLocked) {
-      p.setFillStyle(isByMe ? 0x10b981 : 0xef4444);
-    } else {
-      p.setFillStyle(0x3b82f6);
+      p.setTint(isByMe ? 0x10b981 : 0xef4444);
     }
   }
 
@@ -363,9 +369,11 @@ export default class WardScene extends Phaser.Scene {
 
   private updateRemotePlayer(data: PlayerData) {
     this.remotePlayerData.set(data.id, data);
-    let remote = this.players.get(data.id);
+    let remote = this.players.get(data.id) as any;
     if (!remote) {
-      remote = this.add.rectangle(data.x, data.y, 32, 32, 0xff0000);
+      remote = this.add.sprite(data.x, data.y, 'doctor');
+      remote.setScale(0.25);
+      remote.setTint(0xff8888); // Light red for remote doctors
       remote.setDepth(15);
       this.players.set(data.id, remote);
     } else {
