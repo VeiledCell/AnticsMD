@@ -65,12 +65,14 @@ export default class WardScene extends Phaser.Scene {
     this.createWardEnvironment();
 
     // Create local player
-    this.player = this.add.sprite(400, 300, 'doctor') as any;
-    this.player.setScale(0.25); // Scale 128px down to 32px
-    this.player.setDepth(20);
-    this.physics.add.existing(this.player);
-    if (this.player.body) {
-      (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+    this.player = this.add.sprite(400, 300, 'doctor');
+    if (this.player) {
+      this.player.setScale(0.25); // Scale 128px down to 32px
+      this.player.setDepth(20);
+      this.physics.add.existing(this.player);
+      if (this.player.body) {
+        (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+      }
     }
 
     // Fetch and spawn real patients from Supabase
