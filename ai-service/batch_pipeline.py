@@ -23,12 +23,26 @@ class BatchPipeline:
         
         print(f"📋 Found {len(diseases)} diseases in knowledge graph.")
         
-        # 2. Process each disease
+        # 2. Get existing topics from Supabase to skip them
+        try:
+            existing = self.db.supabase.table("daily_vignettes").select("topic").execute()
+            existing_topics = {row['topic'] for row in existing.data}
+            print(f"⏭️ Skipping {len(existing_topics)} already cached vignettes.")
+        except Exception as e:
+            print(f"⚠️ Could not fetch existing vignettes: {e}")
+            existing_topics = set()
+
+        # 3. Process each disease
         vignettes_created = 0
         for disease_name in tqdm(diseases):
+            if disease_name in existing_topics:
+                continue
+
             try:
                 # A. Get facts (Neo4j)
                 facts = self.db.get_medical_knowledge(disease_name)
+                if not facts:
+                    continue
                 
                 # B. Get template (ChromaDB)
                 template = self.db.get_vignette_template(disease_name)
@@ -38,7 +52,6 @@ class BatchPipeline:
                 
                 # D. Cache (Supabase)
                 vignette_dict = vignette.model_dump()
-                # Prepare for Supabase 'daily_vignettes' table format
                 supabase_entry = {
                     "topic": disease_name,
                     "data": vignette_dict,
@@ -51,7 +64,7 @@ class BatchPipeline:
             except Exception as e:
                 print(f"❌ Failed to generate vignette for {disease_name}: {e}")
 
-        print(f"✅ Pipeline complete! {vignettes_created} vignettes pushed to Supabase.")
+        print(f"✅ Pipeline complete! {vignettes_created} new vignettes pushed to Supabase.")
 
     def close(self):
         self.db.close()

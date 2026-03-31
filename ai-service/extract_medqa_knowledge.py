@@ -6,6 +6,7 @@ from neo4j import GraphDatabase
 import google.generativeai as genai
 from tqdm import tqdm
 from dotenv import load_dotenv
+from .database import generate_vignette_id
 
 load_dotenv()
 
@@ -64,18 +65,28 @@ class MedQAKnowledgeExtractor:
             print(f"\n⚠️ API or JSON Error: {e}")
             return None
 
-    def run(self, limit=100):
+    def run(self, limit=None):
         print(f"🚀 Loading MedQA dataset...")
         dataset = load_dataset("medalpaca/medical_meadow_medqa", split="train", streaming=True)
         
         count = 0
-        print(f"📦 Extraction started (Target: {limit} entities). Rate limit: ~15 per minute.")
+        skipped = 0
+        print(f"📦 Extraction started. Target: {limit or 'ALL'}. Rate limit: ~15 per minute.")
         
         with self.driver.session() as session:
             for entry in tqdm(dataset, desc="Processing MedQA"):
-                if count >= limit:
+                if limit and count >= limit:
                     break
                 
+                vignette_text = entry.get('input', '') or entry.get('instruction', '')
+                source_hash = generate_vignette_id(vignette_text)
+                
+                # Check if we already have this source hash (RESUMABILITY)
+                existing = session.run("MATCH (d:Disease {source_hash: $hash}) RETURN d", hash=source_hash).single()
+                if existing:
+                    skipped += 1
+                    continue
+
                 facts = self.process_question(entry)
                 
                 if facts and 'disease_name' in facts:
@@ -85,7 +96,8 @@ class MedQAKnowledgeExtractor:
                             SET d.specialty = $specialty, 
                                 d.difficulty = $difficulty,
                                 d.medqa_instruction = $inst,
-                                d.medqa_output = $out
+                                d.medqa_output = $out,
+                                d.source_hash = $hash
                             WITH d
                             UNWIND $findings as finding
                             MERGE (s:Symptom {name: finding})
@@ -96,26 +108,28 @@ class MedQAKnowledgeExtractor:
                         difficulty=facts['difficulty'],
                         findings=facts['key_findings'],
                         inst=entry.get('instruction', ''),
-                        out=entry.get('output', '')
+                        out=entry.get('output', ''),
+                        hash=source_hash
                         )
                         count += 1
-                        # Success! Print every 5th one to show progress
-                        if count % 5 == 0:
-                            print(f"  ✨ Extracted: {facts['disease_name']} ({facts['specialty']})")
+                        if count % 10 == 0:
+                            print(f"  ✨ Extracted {count} entities (Skipped {skipped} existing)")
                     except Exception as e:
                         print(f"\n❌ Neo4j Write Error: {e}")
                 
-                # Sleep to respect Gemini Free Tier rate limits (15 RPM = 4 seconds per request)
+                # Sleep to respect Gemini Free Tier rate limits
                 time.sleep(4)
 
-        print(f"✅ FINISHED! Successfully extracted and tagged {count} medical entities in Neo4j.")
+        print(f"✅ FINISHED! Extracted: {count}, Skipped: {skipped}")
 
     def close(self):
-        self.driver.close()
+        if hasattr(self, 'driver'):
+            self.driver.close()
 
 if __name__ == "__main__":
     extractor = MedQAKnowledgeExtractor()
     try:
-        extractor.run(limit=100)
+        # You can run this in chunks of 500 or just leave it to run ALL
+        extractor.run() 
     finally:
         extractor.close()

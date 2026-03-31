@@ -27,12 +27,14 @@ export default class WardScene extends Phaser.Scene {
   };
   private player?: Phaser.GameObjects.Sprite;
   private patients: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private patientToBay: Map<string, string> = new Map(); // patientId -> bayId
   private locks: Map<string, string> = new Map(); // patientId -> playerId
   private playerId: string = Math.random().toString(36).substring(7);
   
   private activePatientId: string | null = null;
   private interactionRadius: number = 60;
   private autoUnlockRadius: number = 100;
+  private isSpawning: boolean = false;
 
   // Ward Layout Config
   private readonly BAY_COORDINATES = [
@@ -155,6 +157,9 @@ export default class WardScene extends Phaser.Scene {
   }
 
   private async spawnLivePatients() {
+    if (this.isSpawning) return;
+    this.isSpawning = true;
+
     try {
       console.log('📡 spawnLivePatients: Fetching from Supabase...');
       
@@ -176,7 +181,7 @@ export default class WardScene extends Phaser.Scene {
         .from('daily_vignettes')
         .select('id')
         .eq('is_active', true)
-        .limit(20); // Fetch more to allow for filtering
+        .limit(50); // Fetch more to allow for refilling bays
 
       if (error) {
         console.error('❌ Supabase Fetch Error:', error);
@@ -190,18 +195,29 @@ export default class WardScene extends Phaser.Scene {
         return;
       }
 
-      // Filter out completed ones
-      const filteredData = data.filter(row => !completedIds.includes(row.id.toString()));
+      // Filter: Not completed AND not already in any bay
+      const currentOccupiedIds = Array.from(this.patients.keys());
+      const availablePool = data
+        .map(row => row.id.toString())
+        .filter(id => !completedIds.includes(id) && !currentOccupiedIds.includes(id));
 
-      filteredData.slice(0, 6).forEach((row, index) => {
-        const bay = this.BAY_COORDINATES[index];
-        if (bay) {
-          this.spawnPatient(row.id.toString(), bay.x, bay.y);
+      console.log(`🏥 spawnLivePatients: Pool of ${availablePool.length} available patients.`);
+
+      // Fill empty bays
+      this.BAY_COORDINATES.forEach((bay) => {
+        const isOccupied = Array.from(this.patientToBay.values()).includes(bay.id);
+        if (!isOccupied && availablePool.length > 0) {
+          const nextId = availablePool.shift();
+          if (nextId) {
+            this.spawnPatient(nextId, bay.x, bay.y, bay.id);
+          }
         }
       });
     } catch (e) {
       console.error('❌ spawnLivePatients Exception:', e);
       this.spawnFallbackPatients();
+    } finally {
+      this.isSpawning = false;
     }
   }
 
@@ -209,14 +225,19 @@ export default class WardScene extends Phaser.Scene {
     console.log('🛠️ Spawning Fallback Patients...');
     for (let i = 0; i < 3; i++) {
       const bay = this.BAY_COORDINATES[i];
-      this.spawnPatient(`fallback-${i}`, bay.x, bay.y);
+      const isOccupied = Array.from(this.patientToBay.values()).includes(bay.id);
+      if (!isOccupied) {
+        this.spawnPatient(`fallback-${i}`, bay.x, bay.y, bay.id);
+      }
     }
   }
 
-  private spawnPatient(id: string, x: number, y: number) {
+  private spawnPatient(id: string, x: number, y: number, bayId: string) {
     if (this.patients.has(id)) return;
 
-    console.log(`👤 spawnPatient: Creating Sprite for ${id} at (${x}, ${y})`);
+    console.log(`👤 spawnPatient: Creating Sprite for ${id} in ${bayId} at (${x}, ${y})`);
+    this.patientToBay.set(id, bayId);
+
     const patient = this.add.sprite(x, y, 'patient');
     patient.setScale(0.25);
     patient.setDepth(10);
@@ -301,9 +322,21 @@ export default class WardScene extends Phaser.Scene {
   private internalDespawn(id: string) {
     const p = this.patients.get(id);
     if (p) {
-      console.log(`  -> DESTROYING patient ${id} GameObject from map`);
+      const bayId = this.patientToBay.get(id);
+      console.log(`  -> DESTROYING patient ${id} GameObject from map (Bay: ${bayId})`);
+      
       p.destroy();
       this.patients.delete(id);
+      this.patientToBay.delete(id);
+
+      if (bayId) {
+        console.log(`🏥 Bay ${bayId} is now empty. Scheduling respawn in 5s...`);
+        this.time.delayedCall(5000, () => {
+          if (this.sys && this.sys.isActive()) {
+            this.spawnLivePatients();
+          }
+        });
+      }
     }
   }
 

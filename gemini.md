@@ -71,11 +71,17 @@
     *   **Board-Style UI:** Updated `InterviewMenu` to feature an "Official Case History" section that displays the full clinical stem.
     *   **Conditional Rendering:** Vitals and Exam sections now only appear if data was explicitly extracted from the original question, matching the variable data density of real board exams.
 
+### 3.7 Dynamic Respawning & Bay Occupancy
+*   **The Problem:** Once a patient was successfully diagnosed and despawned, their bay remained empty for the rest of the session, eventually leaving the ward deserted.
+*   **The Fix:** 
+    *   **Bay Tracking:** Implemented a `patientToBay` map to track which patient ID occupies which visual bay coordinate.
+    *   **Timed Refill:** Added a 5-second delayed respawn trigger in the `internalDespawn` logic that only executes if the scene is still active.
+    *   **Pool Management:** Refactored `spawnLivePatients` to fetch a larger pool from Supabase, filtering out completed cases and currently occupied IDs before refilling empty bays.
+
 ---
 
 ## 4. Current Objectives (Roadmap)
-1.  **Dynamic Respawning:** Implement logic to automatically fetch and spawn a *new* patient into a bay once it has been emptied by a successful (or failed) submission.
-2.  **Laboratory & Imaging Viewer:** Create a dedicated tab in the Dossier for viewing rich lab results and diagnostic imaging findings extracted from the vignette.
-3.  **Enhanced Unit Comms:** Expand the "Ward Feed" to include rich notifications (e.g., "Dr. Hsieh correctly diagnosed Myocardial Infarction in Bay 4").
-4.  **Physical Boundaries:** Refine the Phaser ward collision map to prevent players from walking through medical equipment or walls.
-5.  **Persistent Leaderboard:** Connect the Firestore scoring data to a global leaderboard accessible from the header.
+1.  **Laboratory & Imaging Viewer:** Create a dedicated tab in the Dossier for viewing rich lab results and diagnostic imaging findings extracted from the vignette.
+2.  **Enhanced Unit Comms:** Expand the "Ward Feed" to include rich notifications (e.g., "Dr. Hsieh correctly diagnosed Myocardial Infarction in Bay 4").
+3.  **Physical Boundaries:** Refine the Phaser ward collision map to prevent players from walking through medical equipment or walls.
+4.  **Persistent Leaderboard:** Connect the Firestore scoring data to a global leaderboard accessible from the header.
