@@ -1,12 +1,82 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Stethoscope, User, Play, Plus } from 'lucide-react';
+import { Stethoscope, User, Play, Plus, Loader2 } from 'lucide-react';
+import { auth, db } from '@/lib/firebase';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export default function Home() {
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const savedName = localStorage.getItem('physician_name');
+        if (savedName) setName(savedName);
+      }
+      setIsAuthChecking(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleEstablishRounds = async () => {
+    if (!name) return;
+    setIsLoading(true);
+
+    try {
+      // 1. Sign in anonymously
+      const userCredential = await signInAnonymously(auth);
+      const user = userCredential.user;
+
+      // 2. Store name in localStorage
+      localStorage.setItem('physician_name', name);
+
+      // 3. Ensure game_stats document exists in Firestore
+      if (db) {
+        const statsRef = doc(db, "game_stats", user.uid);
+        const docSnap = await getDoc(statsRef);
+        
+        if (!docSnap.exists()) {
+          await setDoc(statsRef, {
+            uid: user.uid,
+            displayName: name,
+            xp: 0,
+            score: 0,
+            level: 1,
+            wardMetrics: {
+              patientsSeen: 0,
+              correctDiagnoses: 0,
+              misdiagnoses: 0,
+              efficiencyRating: 100
+            },
+            completedQuestions: [],
+            lastActive: new Date().toISOString()
+          });
+        }
+      }
+
+      // 4. Redirect
+      window.location.href = '/play';
+    } catch (error) {
+      console.error("Auth Error:", error);
+      alert("Failed to establish rounds. Check your connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center">
+        <Loader2 className="h-12 w-12 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex flex-col items-center justify-center p-6 font-sans selection:bg-indigo-200">
@@ -48,21 +118,22 @@ export default function Home() {
             className="w-full h-16 bg-slate-50 border-4 border-slate-900 rounded-2xl px-6 text-xl font-bold placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all text-slate-900"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            disabled={isLoading}
           />
         </div>
 
         {/* Action Buttons: Chunky Rounded Borders */}
         <div className="space-y-4">
           <button 
-            onClick={() => {
-              if (name) {
-                localStorage.setItem('physician_name', name);
-                window.location.href = '/play';
-              }
-            }}
-            className={`w-full h-20 bg-[#6366f1] text-white flex items-center justify-center gap-4 border-4 border-slate-900 rounded-2xl text-2xl font-black uppercase tracking-widest shadow-[0_6px_0_0_#312e81] hover:shadow-[0_2px_0_0_#312e81] hover:translate-y-1 transition-all active:shadow-none active:translate-y-1.5 ${!name ? 'opacity-50 pointer-events-none' : ''}`}
+            onClick={handleEstablishRounds}
+            disabled={!name || isLoading}
+            className={`w-full h-20 bg-[#6366f1] text-white flex items-center justify-center gap-4 border-4 border-slate-900 rounded-2xl text-2xl font-black uppercase tracking-widest shadow-[0_6px_0_0_#312e81] hover:shadow-[0_2px_0_0_#312e81] hover:translate-y-1 transition-all active:shadow-none active:translate-y-1.5 ${(!name || isLoading) ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            <Play className="h-8 w-8 fill-current" />
+            {isLoading ? (
+              <Loader2 className="h-8 w-8 animate-spin" />
+            ) : (
+              <Play className="h-8 w-8 fill-current" />
+            )}
             Establish rounds
           </button>
 

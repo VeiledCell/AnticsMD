@@ -12,6 +12,7 @@ import { ClinicalVignette } from '@/types';
 import { AnimatePresence, motion } from 'framer-motion';
 import InterviewMenu from '@/components/InterviewMenu';
 import { saveGameStats, auth, markQuestionAsCompleted, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { supabase } from '@/lib/supabase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -26,6 +27,16 @@ export default function PlayPage() {
   const [activeTab, setActiveTab] = useState<'patient' | 'feed'>('feed');
   const [players, setPlayers] = useState<any[]>([]);
   const [myName, setMyName] = useState('Resident');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const savedName = localStorage.getItem('physician_name');
@@ -33,16 +44,19 @@ export default function PlayPage() {
   }, []);
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
     const fetchVignettes = async () => {
       let completedIds: string[] = [];
       
       // Try to get completed IDs from Firestore if user is logged in
-      if (auth?.currentUser && db) {
+      if (user && db) {
         try {
-          const statsRef = doc(db, "game_stats", auth.currentUser.uid);
+          const statsRef = doc(db, "game_stats", user.uid);
           const docSnap = await getDoc(statsRef);
           if (docSnap.exists()) {
             completedIds = docSnap.data().completedQuestions || [];
+            console.log("✅ Fetched completed questions:", completedIds.length);
           }
         } catch (e) {
           console.warn("Failed to fetch completed questions:", e);
@@ -74,7 +88,7 @@ export default function PlayPage() {
       }
     };
     fetchVignettes();
-  }, [auth?.currentUser]);
+  }, [user, isAuthLoading]);
 
   useEffect(() => {
     const handleInteract = (e: any) => {
